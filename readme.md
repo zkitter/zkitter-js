@@ -2,7 +2,15 @@
 
 Javascript implementation of a standalone Zkitter node
 
+
+
 ## CLI Usage
+To install CLI:
+```sh
+npm i -g zkitter-js
+```
+
+CLI options:
 ```
 Options:
   -V, --version       output the version number
