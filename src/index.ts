@@ -8,5 +8,7 @@ export type {PostMeta} from "./models/postmeta";
 export type {UserMeta} from "./models/usermeta";
 export {EmptyPostMeta} from "./models/postmeta";
 export {EmptyUserMeta} from "./models/usermeta";
+export type {GroupMember, GroupID} from "./models/group";
 export type {User} from "./models/user";
 export type {Proof, ProofType, RLNProof, SignatureProof} from "./models/proof";
+

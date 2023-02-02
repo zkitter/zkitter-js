@@ -27,7 +27,7 @@ import {GroupMember} from "../models/group";
 const keys = {
   APP: {
     lastArbitrumBlockScanned: 'lastArbitrumBlockScanned',
-    arbitrumHttpProvider: 'arbitrumHttpProvider',
+    arbitrumProvider: 'arbitrumProvider',
   },
   META: {
     userCount: 'userCount',
@@ -134,12 +134,12 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   async getArbitrumProvider(): Promise<string> {
-    const arbitrumHttpProvider = await this.appDB.get(keys.APP.arbitrumHttpProvider).catch(() => '');
-    return String(arbitrumHttpProvider);
+    const arbitrumProvider = await this.appDB.get(keys.APP.arbitrumProvider).catch(() => '');
+    return String(arbitrumProvider);
   }
 
-  async setArbitrumProvider(httpProvider: string): Promise<void> {
-    return this.appDB.put(keys.APP.arbitrumHttpProvider, httpProvider);
+  async setArbitrumProvider(provider: string): Promise<void> {
+    return this.appDB.put(keys.APP.arbitrumProvider, provider);
   }
 
   async getLastArbitrumBlockScanned(): Promise<number> {

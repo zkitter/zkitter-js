@@ -4,14 +4,14 @@ import {Zkitter} from "../services";
 
 export async function initZkitter(lazy?: boolean): Promise<Zkitter|null> {
   const db = await LevelDBAdapter.initialize();
-  const arbitrumHttpProvider = await db.getArbitrumProvider();
+  const arbitrumProvider = await db.getArbitrumProvider();
 
   try {
-    new URL(arbitrumHttpProvider);
+    new URL(arbitrumProvider);
   } catch (e) {
-    error('invalid http provider');
+    error('invalid provider');
     return null;
   }
 
-  return Zkitter.initialize({ db, arbitrumHttpProvider, lazy });
+  return Zkitter.initialize({ db, arbitrumProvider, lazy });
 }

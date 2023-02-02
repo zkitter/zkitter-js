@@ -1,14 +1,14 @@
 {
   "name": "zkitter-js",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Implementation of Zkitter using Waku and LevelDB",
   "main": "dist/index.js",
   "scripts": {
     "dev-server": "nodemon ./build/test.js",
     "watch-server": "webpack --config webpack.config.js --watch",
     "build-server": "webpack --config webpack.config.js",
-    "build-lib": "webpack --config webpack.lib.js",
-    "build-cli": "webpack --config webpack.bin.js",
+    "build-lib": "NODE_ENV=production webpack --config webpack.lib.js",
+    "build-cli": "NODE_ENV=production webpack --config webpack.bin.js",
     "dev": "NODE_ENV=development concurrently --kill-others-on-fail npm:watch-server npm:dev-server",
     "build": "NODE_ENV=production npm run build-cli && npm run build-lib",
     "start": "NODE_ENV=production npm run build && node ./build/server.js"
@@ -18,8 +18,10 @@
   "bin": {
     "zkitter": "./bin/cli.js"
   },
+  "types": "dist/src/index.d.ts",
   "files": [
-    "./dist/*.js"
+    "dist/",
+    "readme.md"
   ],
   "dependencies": {
     "@nodeutils/defaults-deep": "^1.1.0",
@@ -30,6 +32,7 @@
     "@waku/peer-exchange": "^0.0.1",
     "@waku/proto": "^0.0.2",
     "@zk-kit/identity": "^1.4.1",
+    "@zk-kit/incremental-merkle-tree": "^0.4.3",
     "@zk-kit/protocols": "^1.11.1",
     "async-mutex": "^0.3.1",
     "bytewise": "^1.1.0",
@@ -80,6 +83,7 @@
     "ts-loader": "^9.4.1",
     "ts-node": "^10.9.1",
     "typescript": "^4.9.3",
+    "uglifyjs-webpack-plugin": "^2.2.0",
     "webpack": "^5.75.0",
     "webpack-cli": "^5.0.0",
     "webpack-node-externals": "^3.0.0"

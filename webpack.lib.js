@@ -2,6 +2,7 @@ const webpack = require('webpack');
 const nodeExternals = require('webpack-node-externals');
 const { compilerOptions } = require('./tsconfig.json');
 const path = require('path');
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -12,20 +13,21 @@ const envPlugin = new webpack.EnvironmentPlugin({
 
 const rules = [
     {
-        test: /\.node$/,
-        use: 'node-loader',
-    },
-    {
         test: /\.tsx?$/,
         exclude: /(node_modules|.webpack)/,
         rules: [
             {
                 loader: 'ts-loader',
                 options: {
+                    configFile: 'tsconfig.json',
                     transpileOnly: true,
                 },
             },
         ],
+    },
+    {
+        test: /\.node$/,
+        use: 'node-loader',
     },
 ];
 
@@ -34,6 +36,7 @@ module.exports = [
         mode: isProd ? 'production' : 'development',
         entry: {
             index: path.join(__dirname, 'src', 'index.ts'),
+            'index.min': path.join(__dirname, 'src', 'index.ts'),
         },
         target: 'node',
         devtool: 'source-map',
@@ -50,12 +53,19 @@ module.exports = [
         },
         output: {
             path: __dirname + '/dist',
-            filename: `index.js`,
+            filename: `[name].js`,
             library: {
                 name: "zkitterjs",
                 type: "umd"
             },
         },
-        plugins: [envPlugin],
+        plugins: [
+            envPlugin,
+            new UglifyJsPlugin({
+                // minimize: true,
+                sourceMap: true,
+                include: /\.min\.js$/,
+            })
+        ],
     },
 ];

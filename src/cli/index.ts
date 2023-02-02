@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env NODE_NO_WARNINGS=1 node
 import {program} from "commander";
 import {version} from "../../package.json";
 import {init} from "./init";

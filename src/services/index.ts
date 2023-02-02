@@ -46,13 +46,13 @@ export class Zkitter extends GenericService {
   };
 
   static async initialize(options: {
-    arbitrumHttpProvider: string;
+    arbitrumProvider: string;
     groups?: GenericGroupAdapter[];
     db?: GenericDBAdapterInterface;
     lazy?: boolean;
   }): Promise<Zkitter> {
     const db = options.db || await LevelDBAdapter.initialize();
-    const users = new UserService({db, arbitrumHttpProvider: options.arbitrumHttpProvider});
+    const users = new UserService({db, arbitrumProvider: options.arbitrumProvider});
     const posts = new PostService({db});
     const moderations = new ModerationService({db});
     const connections = new ConnectionService({db});
@@ -157,7 +157,7 @@ export class Zkitter extends GenericService {
   }
 
   async syncUsers() {
-    await this.services.users.fetchUsersFromArbitrum();
+    await this.services.users.syncUsers();
   }
 
   async syncGroup(groupId?: string) {

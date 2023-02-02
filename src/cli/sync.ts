@@ -21,6 +21,10 @@ export function sync(program: Command) {
         success(`Synced with Arbitrum Mainnet from block #${fromBlock} to #${toBlock}(${completion}%)`);
       });
 
+      zkitter.on(UserServiceEvents.NewUserCreated, data => {
+        success(`New user added - @${data.address}`);
+      });
+
       if (options.arbitrum) {
         await zkitter.syncUsers();
       } else if (options.group) {

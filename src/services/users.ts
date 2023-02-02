@@ -1,17 +1,20 @@
 import {GenericService} from "../utils/svc";
 import Web3 from "web3";
-import logger from "../utils/logger";
+import {provider} from "web3-core";
 import {GenericDBAdapterInterface} from "../adapters/db";
 import {arbRegistrarABI} from "../utils/abi";
 import {Contract} from "web3-eth-contract";
 import {User} from "../models/user";
 import {UserMeta} from "../models/usermeta";
 import {ConstructorOptions} from "eventemitter2";
+import mutexify from "../utils/mux";
 
 export const ARBITRUM_REGISTRAR_ADDRESS = '0x6b0a11F9aA5aa275f16e44e1D479A59dd00abE58';
 
 export enum UserServiceEvents {
   ArbitrumSynced = 'Users.ArbitrumSynced',
+  NewUserCreated = 'Users.NewUserCreated',
+  InvalidEventData = 'Users.InvalidEventData',
 }
 
 const DEFAULT_WATCH_INTERVAL = 1000 * 15;
@@ -25,15 +28,29 @@ export class UserService extends GenericService {
 
   timeout: any;
 
+  http?: provider;
+  ws?: provider;
+
+  getBlock: (block: string|number) => Promise<any>;
+
   constructor(
     props: ConstructorOptions & {
       db: GenericDBAdapterInterface,
-      arbitrumHttpProvider: string,
+      arbitrumProvider: string,
     },
   ) {
     super(props);
-    const httpProvider = new Web3.providers.HttpProvider(props.arbitrumHttpProvider);
-    this.web3 = new Web3(httpProvider);
+    const url = new URL(props.arbitrumProvider);
+
+    if (url.protocol === 'https:') {
+      this.http = new Web3.providers.HttpProvider(props.arbitrumProvider);
+      this.web3 = new Web3(this.http);
+    } else if (url.protocol === 'wss:') {
+      this.ws = new Web3.providers.WebsocketProvider(props.arbitrumProvider);
+      this.web3 = new Web3(this.ws);
+    }
+
+    this.getBlock = mutexify(this.web3.eth.getBlock);
     this.registrar = new this.web3.eth.Contract(arbRegistrarABI as any, ARBITRUM_REGISTRAR_ADDRESS);
     this.db = props.db;
   }
@@ -53,6 +70,49 @@ export class UserService extends GenericService {
     };
   }
 
+  async subscribeRegistrar(startingBlock?: number): Promise<void> {
+    const lastBlock = startingBlock || await this.db.getLastArbitrumBlockScanned();
+
+    this.registrar.events.RecordUpdatedFor({
+        fromBlock: lastBlock,
+      })
+      .on('data', (event: any) => this.updateUser(event))
+      .on('error', (err: any) => {throw new Error(err)})
+  }
+
+  async updateUser(event: {
+    transactionHash: string;
+    id: string;
+    blockNumber: number;
+    returnValues: {
+      [key: string]: string;
+    }
+  }): Promise<void> {
+    const block = await this.getBlock(event.blockNumber);
+    const pubkeyBytes = event.returnValues.value;
+    const account = event.returnValues.account;
+    const pubkey = Web3.utils.hexToUtf8(pubkeyBytes);
+
+    const x = pubkey.split('.')[0];
+    const y = pubkey.split('.')[1];
+
+    if (x.length !== 43 || y.length !== 43) {
+      this.emit(UserServiceEvents.InvalidEventData, event);
+      return;
+    }
+
+    const user: User = {
+      address: account,
+      pubkey,
+      joinedAt: new Date(Number(block.timestamp) * 1000),
+      tx: event.transactionHash,
+      type: 'arbitrum',
+    };
+
+    await this.db.updateUser(user);
+    this.emit(UserServiceEvents.NewUserCreated, user);
+  }
+
   async fetchUsersFromArbitrum(startingBlock?: number): Promise<void> {
     if (this.timeout) {
       clearTimeout(this.timeout);
@@ -70,31 +130,7 @@ export class UserService extends GenericService {
     });
 
     for (const event of events) {
-      const tx = await this.web3.eth.getTransaction(event.transactionHash);
-      const block = await this.web3.eth.getBlock(event.blockNumber);
-
-      const pubkeyBytes = event.returnValues.value;
-      const account = event.returnValues.account;
-      const pubkey = Web3.utils.hexToUtf8(pubkeyBytes);
-
-      const x = pubkey.split('.')[0];
-      const y = pubkey.split('.')[1];
-
-      if (x.length !== 43 || y.length !== 43) {
-        logger.error('invalid pubkey', {
-          fromBlock: lastBlock,
-          toBlock: block.number,
-        });
-        continue;
-      }
-
-      await this.db.updateUser({
-        address: account,
-        pubkey,
-        joinedAt: new Date(Number(block.timestamp) * 1000),
-        tx: tx.hash,
-        type: 'arbitrum',
-      });
+      await this.updateUser(event as any);
     }
 
     await this.db.updateLastArbitrumBlockScanned(toBlock);
@@ -110,11 +146,24 @@ export class UserService extends GenericService {
     }
   }
 
-  watchArbitrum = async (interval = DEFAULT_WATCH_INTERVAL) => {
-    try {
+  syncUsers = async () => {
+    if (this.http) {
       await this.fetchUsersFromArbitrum();
-    } finally {
-      this.timeout = setTimeout(this.watchArbitrum, interval);
+    } else if (this.ws) {
+      await this.subscribeRegistrar();
+    }
+  }
+
+  watchArbitrum = async (interval = DEFAULT_WATCH_INTERVAL) => {
+    if (this.http) {
+      try {
+        await this.fetchUsersFromArbitrum();
+      } finally {
+        this.timeout = setTimeout(this.watchArbitrum, interval);
+      }
+    } else if (this.ws) {
+      await this.fetchUsersFromArbitrum();
+      await this.subscribeRegistrar();
     }
   }
 

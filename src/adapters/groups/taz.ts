@@ -1,6 +1,7 @@
 import { generateMerkleTree } from '@zk-kit/protocols';
 import {GenericGroupAdapter} from "../group";
 import {GenericDBAdapterInterface} from "../db";
+import {IncrementalMerkleTree} from "@zk-kit/incremental-merkle-tree";
 
 export class TazGroup implements GenericGroupAdapter {
   db: GenericDBAdapterInterface;
@@ -30,7 +31,7 @@ export class TazGroup implements GenericGroupAdapter {
     }
   }
 
-  async tree(depth = 15) {
+  async tree(depth = 15): Promise<IncrementalMerkleTree> {
     const tree = generateMerkleTree(
       depth,
       BigInt(0),

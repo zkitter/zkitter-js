@@ -30,7 +30,6 @@ export function up(program: Command) {
 
       await zkitter.subscribe();
       await zkitter.watchArbitrum();
-      await zkitter.syncGroup();
 
       console.log('Subscribing to all events (<Ctrl + C> to exit)...');
 

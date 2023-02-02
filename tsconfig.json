@@ -14,9 +14,12 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "sourceMap": true,
-    "noEmit": true,
     "useUnknownInCatchVariables": false,
-    "strictPropertyInitialization": false
+    "strictPropertyInitialization": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "dist"
   },
   "include": ["src", "types"]
 }
