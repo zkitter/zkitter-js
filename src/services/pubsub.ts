@@ -93,9 +93,9 @@ export class PubsubService extends GenericService {
         const {proof: fullProof} = proof;
         const group = await this.groups.getGroupByRoot(fullProof.publicSignals.merkleRoot as string);
         return verifyRLNProof(hash, group, fullProof);
+      default:
+        return false;
     }
-
-    return false;
   }
 
   async covertMessaegToWakuPayload(message: ZkitterMessage, proof: Proof) {
