@@ -69,16 +69,6 @@ export class PubsubService extends GenericService {
   async validateMessage(message: ZkitterMessage, proof: Proof): Promise<boolean> {
     const hash = message.hash();
 
-    switch (proof.type) {
-      case ProofType.signature:
-        const user = await this.users.getUser(message.creator);
-        return !!user?.pubkey && verifySignatureP256(user.pubkey, hash, proof.signature);
-      case ProofType.rln:
-        const {proof: fullProof} = proof;
-        const group = await this.groups.getGroupByRoot(fullProof.publicSignals.merkleRoot as string);
-        return verifyRLNProof(hash, group, fullProof);
-    }
-
     switch (message.type) {
       case MessageType.Moderation:
         const msg = message as Moderation;
@@ -94,6 +84,18 @@ export class PubsubService extends GenericService {
           }
         }
     }
+
+    switch (proof.type) {
+      case ProofType.signature:
+        const user = await this.users.getUser(message.creator);
+        return !!user?.pubkey && verifySignatureP256(user.pubkey, hash, proof.signature);
+      case ProofType.rln:
+        const {proof: fullProof} = proof;
+        const group = await this.groups.getGroupByRoot(fullProof.publicSignals.merkleRoot as string);
+        return verifyRLNProof(hash, group, fullProof);
+    }
+
+    return false;
   }
 
   async covertMessaegToWakuPayload(message: ZkitterMessage, proof: Proof) {

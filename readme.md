@@ -10,6 +10,14 @@ To install CLI:
 npm i -g zkitter-js
 ```
 
+To sync:
+```sh
+# either https or wss provider will work
+zkitter init -a wss://arb-mainnet.g.alchemy.com/v2/[api-key]
+zkitter sync
+zkitter timeline --limit=5
+```
+
 CLI options:
 ```
 Options:
