@@ -1,12 +1,12 @@
 import {GenericService} from "../utils/svc";
 import Web3 from 'web3';
-import { Contract } from 'web3-eth-contract';
+import {Contract} from 'web3-eth-contract';
 import {AlreadyExistError, LevelDBAdapter} from "../adapters/leveldb";
-import {UserService, UserServiceEvents} from "./users";
+import {UserService} from "./users";
 import {User} from "../models/user";
 import {PubsubService} from "./pubsub";
 import {PostService} from "./posts";
-import {Connection, Message, MessageType, Moderation, Post, Profile} from "../utils/message";
+import {Connection, Message, MessageType, Moderation, parseMessageId, Post, Profile} from "../utils/message";
 import {ModerationService} from "./moderations";
 import {ConnectionService} from "./connections";
 import {UserMeta} from "../models/usermeta";
@@ -24,6 +24,10 @@ import {GlobalGroup} from "../adapters/groups/global";
 
 export enum ZkitterEvents {
   ArbitrumSynced = 'Users.ArbitrumSynced',
+  NewUserCreated = 'Users.NewUserCreated',
+  InvalidEventData = 'Users.InvalidEventData',
+  GroupSynced = 'Group.GroupSynced',
+  NewGroupMemberCreated = 'Group.NewGroupMemberCreated',
   AlreadyExist = 'Level.AlreadyExist',
   NewMessageCreated = 'Zkitter.NewMessageCreated',
 }
@@ -34,6 +38,8 @@ export class Zkitter extends GenericService {
   registrar: Contract;
 
   db: GenericDBAdapterInterface;
+
+  historyAPI: string;
 
   services: {
     users: UserService;
@@ -49,6 +55,7 @@ export class Zkitter extends GenericService {
     arbitrumProvider: string;
     groups?: GenericGroupAdapter[];
     db?: GenericDBAdapterInterface;
+    historyAPI?: string;
     lazy?: boolean;
   }): Promise<Zkitter> {
     const db = options.db || await LevelDBAdapter.initialize();
@@ -81,7 +88,17 @@ export class Zkitter extends GenericService {
       groups.addGroup(group);
     }
 
-    return new Zkitter({ db, users, pubsub, posts, moderations, connections, profile, groups });
+    return new Zkitter({
+      db,
+      users,
+      pubsub,
+      posts,
+      moderations,
+      connections,
+      profile,
+      groups,
+      historyAPI: options.historyAPI,
+    });
   }
 
   constructor(opts: ConstructorOptions & {
@@ -93,9 +110,12 @@ export class Zkitter extends GenericService {
     connections: ConnectionService;
     profile: ProfileService;
     groups: GroupService;
+    historyAPI?: string;
   }) {
     super(opts);
     this.db = opts.db;
+    this.historyAPI = opts.historyAPI || 'https://api.zkitter.com/v1/history';
+
     this.services = {
       pubsub: opts.pubsub,
       users: opts.users,
@@ -107,8 +127,8 @@ export class Zkitter extends GenericService {
     };
 
     for (const service of Object.values(this.services)) {
-      service.onAny((event, value) => {
-        this.emit(event, value);
+      service.onAny((event, ...values) => {
+        this.emit(event, ...values);
       });
     }
   }
@@ -213,19 +233,19 @@ export class Zkitter extends GenericService {
       switch (msg?.type) {
         case MessageType.Post:
           await this.services.posts.insert(msg as Post, proof);
-          this.emit(ZkitterEvents.NewMessageCreated, msg);
+          this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
           break;
         case MessageType.Moderation:
           await this.services.moderations.insert(msg as Moderation, proof);
-          this.emit(ZkitterEvents.NewMessageCreated, msg);
+          this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
           break;
         case MessageType.Connection:
           await this.services.connections.insert(msg as Connection, proof);
-          this.emit(ZkitterEvents.NewMessageCreated, msg);
+          this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
           break;
         case MessageType.Profile:
           await this.services.profile.insert(msg as Profile, proof);
-          this.emit(ZkitterEvents.NewMessageCreated, msg);
+          this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
           break;
       }
     } catch (e) {
@@ -257,6 +277,74 @@ export class Zkitter extends GenericService {
         await this.insert(msg, proof);
       }
     });
+  }
+
+  async queryHistory(): Promise<void> {
+    const downloaded = await this.db.getHistoryDownloaded();
+
+    if (!downloaded) {
+      const resp = await fetch(this.historyAPI);
+      const json = await resp.json();
+      return new Promise(async (resolve, reject) => {
+        if (json.error) return reject(json.payload);
+
+        try {
+          for (const msg of json.payload) {
+            if (!msg) continue;
+            const {creator} = parseMessageId(msg.messageId);
+            let message: Message | null = null;
+
+            switch (msg.type) {
+              case MessageType.Post:
+                message = new Post({
+                  type: msg.type,
+                  subtype: msg.subtype,
+                  payload: msg.payload,
+                  createdAt: new Date(msg.createdAt),
+                  creator,
+                });
+                break;
+              case MessageType.Moderation:
+                message = new Moderation({
+                  type: msg.type,
+                  subtype: msg.subtype,
+                  payload: msg.payload,
+                  createdAt: new Date(msg.createdAt),
+                  creator,
+                });
+                break;
+              case MessageType.Connection:
+                message = new Connection({
+                  type: msg.type,
+                  subtype: msg.subtype,
+                  payload: msg.payload,
+                  createdAt: new Date(msg.createdAt),
+                  creator,
+                });
+                break;
+              case MessageType.Profile:
+                message = new Profile({
+                  type: msg.type,
+                  subtype: msg.subtype,
+                  payload: msg.payload,
+                  createdAt: new Date(msg.createdAt),
+                  creator,
+                });
+                break;
+            }
+
+            if (message) {
+              await this.insert(message, { type: '', proof: null, group: msg.group });
+            }
+          }
+
+          await this.db.setHistoryDownloaded(true);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }
   }
 
   async subscribe() {

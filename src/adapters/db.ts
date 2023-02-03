@@ -9,6 +9,8 @@ export interface GenericDBAdapterInterface {
   getUserCount: () => Promise<number>;
   getLastArbitrumBlockScanned: () => Promise<number>;
   updateLastArbitrumBlockScanned: (block: number) => Promise<number>;
+  getHistoryDownloaded: () => Promise<boolean>;
+  setHistoryDownloaded: (downloaded: boolean) => Promise<void>;
   updateUser: (user: User) => Promise<User>;
   getUsers: (limit?: number, offset?: number|string) => Promise<User[]>;
   getUser: (address: string) => Promise<User|null>;

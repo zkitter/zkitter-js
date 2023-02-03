@@ -16,4 +16,10 @@ export type RLNProof = {
   proof: RLNFullProof;
 }
 
-export type Proof = SignatureProof | RLNProof;
+export type NullProof = {
+  type: '';
+  proof: null;
+  group?: string;
+}
+
+export type Proof = SignatureProof | RLNProof | NullProof;

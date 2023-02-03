@@ -32,6 +32,7 @@ export function timeline(program: Command) {
       const posts = user ? await zkitter.getUserPosts(user, limit, offset)
         : thread ? await zkitter.getThread(thread, limit, offset)
         : await zkitter.getPosts(Number(limit), offset);
+
       await printPosts(zkitter, posts);
       process.exit(0);
     });

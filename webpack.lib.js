@@ -59,13 +59,16 @@ module.exports = [
                 type: "umd"
             },
         },
-        plugins: [
-            envPlugin,
-            new UglifyJsPlugin({
+        optimization: {
+            minimize: isProd,
+            minimizer: [new UglifyJsPlugin({
                 // minimize: true,
                 sourceMap: true,
                 include: /\.min\.js$/,
-            })
+            })]
+        },
+        plugins: [
+            envPlugin,
         ],
     },
 ];

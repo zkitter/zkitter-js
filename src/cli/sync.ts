@@ -1,7 +1,6 @@
 import {Command} from "commander";
 import {initZkitter} from "../utils/cli";
-import {UserServiceEvents} from "../services/users";
-import {success} from "../utils/logger";
+import {ZkitterEvents} from "../services";
 
 export function sync(program: Command) {
   program
@@ -15,14 +14,20 @@ export function sync(program: Command) {
 
       if (!zkitter) return;
 
-      zkitter.on(UserServiceEvents.ArbitrumSynced, data => {
-        const {latest, fromBlock, toBlock} = data;
-        const completion = ((fromBlock / latest) * 100).toFixed(2);
-        success(`Synced with Arbitrum Mainnet from block #${fromBlock} to #${toBlock}(${completion}%)`);
+      let newUsers = 0;
+      let newMembers = 0;
+      let newMsgs = 0;
+
+      zkitter.on(ZkitterEvents.NewUserCreated, data => {
+        newUsers++;
       });
 
-      zkitter.on(UserServiceEvents.NewUserCreated, data => {
-        success(`New user added - @${data.address}`);
+      zkitter.on(ZkitterEvents.NewGroupMemberCreated, (data, groupId) => {
+        newMembers++;
+      });
+
+      zkitter.on(ZkitterEvents.NewMessageCreated, msg => {
+        newMsgs++;
       });
 
       if (options.arbitrum) {
@@ -31,8 +36,15 @@ export function sync(program: Command) {
         await zkitter.syncGroup(options.group);
       } else if (options.groups) {
         await zkitter.syncGroup();
+      } else {
+        await Promise.all([
+          zkitter.syncUsers(),
+          zkitter.syncGroup(),
+          zkitter.queryHistory(),
+        ]);
       }
 
+      console.log(`Found ${newUsers} new user(s), ${newMembers} new member(s), and ${newMsgs} new message(s).`);
       process.exit(0);
     });
 }

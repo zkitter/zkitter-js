@@ -28,6 +28,7 @@ const keys = {
   APP: {
     lastArbitrumBlockScanned: 'lastArbitrumBlockScanned',
     arbitrumProvider: 'arbitrumProvider',
+    historyDownloaded: 'historyDownloaded',
   },
   META: {
     userCount: 'userCount',
@@ -50,7 +51,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   get appDB() {
-    return this.db.sublevel<string, number|string>('app', { valueEncoding: 'json' });
+    return this.db.sublevel<string, number|string|boolean>('app', { valueEncoding: 'json' });
   }
 
   get metaDB() {
@@ -136,6 +137,16 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   async getArbitrumProvider(): Promise<string> {
     const arbitrumProvider = await this.appDB.get(keys.APP.arbitrumProvider).catch(() => '');
     return String(arbitrumProvider);
+  }
+
+  async setHistoryDownloaded(downloaded: boolean): Promise<void> {
+    return this.appDB.put(keys.APP.historyDownloaded, downloaded);
+  }
+
+  async getHistoryDownloaded(): Promise<boolean> {
+    return this.appDB.get(keys.APP.historyDownloaded)
+      .then(historyDownloaded => !!historyDownloaded)
+      .catch(() => false);
   }
 
   async setArbitrumProvider(provider: string): Promise<void> {
@@ -266,11 +277,10 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   async insertGroupMember(groupId: string, member: GroupMember): Promise<GroupMember|null> {
     const existing = await this.groupMembersDB(groupId).get(member.idCommitment).catch(() => null);
 
-    // if (existing) {
-    //   // throw AlreadyExistError;
-    //   return null;
-    // }
-    // console.log(member.newRoot);
+    if (existing) {
+      return null;
+    }
+
     await this.db.batch([
       {
         type: 'put',
@@ -589,6 +599,9 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       const groupId = await this.findGroupHash(proof.proof.publicSignals.merkleRoot as string);
       postMetaDirty = true;
       postMeta.groupId = groupId || '';
+    } else if (proof.type === '' && proof.group) {
+      postMetaDirty = true;
+      postMeta.groupId = proof.group;
     }
 
     if (!post.payload.reference) {

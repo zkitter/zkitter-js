@@ -61,7 +61,7 @@ export class UserService extends GenericService {
     latestBlock: number;
   }> {
     const lastBlock = await this.db.getLastArbitrumBlockScanned();
-    const block = await this.web3.eth.getBlock('latest');
+    const block = await this.getBlock('latest');
 
     return {
       totalUsers: await this.db.getUserCount(),
@@ -73,11 +73,28 @@ export class UserService extends GenericService {
   async subscribeRegistrar(startingBlock?: number): Promise<void> {
     const lastBlock = startingBlock || await this.db.getLastArbitrumBlockScanned();
 
-    this.registrar.events.RecordUpdatedFor({
-        fromBlock: lastBlock,
-      })
-      .on('data', (event: any) => this.updateUser(event))
-      .on('error', (err: any) => {throw new Error(err)})
+    return new Promise((resolve, reject) => {
+      let timeout: any;
+      this.registrar.events.RecordUpdatedFor({
+          fromBlock: lastBlock,
+        })
+        .on('data', mutexify(async(event: any) => {
+          if (timeout) {
+            clearTimeout(timeout);
+          }
+          await this.updateUser(event);
+          await this.db.updateLastArbitrumBlockScanned(event.blockNumber + 1);
+          timeout = setTimeout(resolve, 5000);
+        }))
+        .on('connected', () => {
+          if (timeout) {
+            clearTimeout(timeout);
+          }
+          timeout = setTimeout(resolve, 5000);
+        })
+        .on('error', (err: any) => {throw new Error(err)})
+    });
+
   }
 
   async updateUser(event: {
@@ -120,7 +137,7 @@ export class UserService extends GenericService {
     }
 
     const lastBlock = startingBlock || await this.db.getLastArbitrumBlockScanned();
-    const block = await this.web3.eth.getBlock('latest');
+    const block = await this.getBlock('latest');
 
     const toBlock = Math.min(block.number, lastBlock + 99999);
 
@@ -162,7 +179,6 @@ export class UserService extends GenericService {
         this.timeout = setTimeout(this.watchArbitrum, interval);
       }
     } else if (this.ws) {
-      await this.fetchUsersFromArbitrum();
       await this.subscribeRegistrar();
     }
   }

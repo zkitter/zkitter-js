@@ -1,8 +1,9 @@
 import { generateMerkleTree } from '@zk-kit/protocols';
-import {GenericGroupAdapter} from "../group";
+import {GenericGroupAdapter, GroupEvents} from "../group";
 import {GenericDBAdapterInterface} from "../db";
+import EventEmitter2, {ConstructorOptions} from "eventemitter2";
 
-export class GlobalGroup implements GenericGroupAdapter {
+export class GlobalGroup extends EventEmitter2 implements GenericGroupAdapter {
   db: GenericDBAdapterInterface;
 
   groupId = 'zksocial_all';
@@ -11,7 +12,8 @@ export class GlobalGroup implements GenericGroupAdapter {
 
   constructor(opts: {
     db: GenericDBAdapterInterface,
-  }) {
+  } & ConstructorOptions) {
+    super(opts);
     this.db = opts.db;
   }
 
@@ -23,11 +25,16 @@ export class GlobalGroup implements GenericGroupAdapter {
       const tree = await this.tree();
       for (let i = 0; i < json.payload.length; i++) {
         const idCommitment = '0x' + json.payload[i].id_commitment;
-        await this.db.insertGroupMember(this.groupId, {
-          idCommitment,
-          newRoot: tree.root.toString(),
-          index: i,
-        });
+        if (tree.indexOf(BigInt(idCommitment)) < 0) {
+          tree.insert(BigInt(idCommitment));
+          const member = {
+            idCommitment,
+            newRoot: tree.root.toString(),
+            index: i,
+          };
+          await this.db.insertGroupMember(this.groupId, member);
+          this.emit(GroupEvents.NewGroupMemberCreated, member, this.groupId);
+        }
       }
     }
   }

@@ -13,5 +13,9 @@ export async function initZkitter(lazy?: boolean): Promise<Zkitter|null> {
     return null;
   }
 
-  return Zkitter.initialize({ db, arbitrumProvider, lazy });
+  return Zkitter.initialize({
+    db,
+    arbitrumProvider,
+    lazy,
+  });
 }

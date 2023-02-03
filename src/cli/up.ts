@@ -28,6 +28,7 @@ export function up(program: Command) {
         // success(`Synced with Arbitrum Mainnet from block #${fromBlock} to #${toBlock}(${completion}%)`);
       });
 
+      await zkitter.queryHistory();
       await zkitter.subscribe();
       await zkitter.watchArbitrum();
 

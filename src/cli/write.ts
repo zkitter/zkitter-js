@@ -43,7 +43,7 @@ export async function handleWrite(
     let privateKey: string | undefined = undefined;
     let zkIdentity: ZkIdentity | undefined = undefined;
 
-    if (identityNullifier && identityTrapdoor) {
+    if (group) {
       zkIdentity = new ZkIdentity(Strategy.SERIALIZED, JSON.stringify({
         identityTrapdoor,
         identityNullifier,

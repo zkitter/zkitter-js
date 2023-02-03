@@ -1,7 +1,7 @@
 import {GenericService} from "../utils/svc";
 import {GenericDBAdapterInterface} from "../adapters/db";
 import {ConstructorOptions} from "eventemitter2";
-import {GenericGroupAdapter} from "../adapters/group";
+import {GenericGroupAdapter, GroupEvents} from "../adapters/group";
 
 export class GroupService extends GenericService {
   db: GenericDBAdapterInterface;
@@ -24,18 +24,21 @@ export class GroupService extends GenericService {
 
   addGroup(group: GenericGroupAdapter) {
     this.groups[group.groupId] = group;
+    group.onAny((event, ...values) => {
+      this.emit(event, ...values);
+    });
   }
 
   async sync(groupId?: string) {
     if (groupId && this.groups[groupId]) {
       await this.groups[groupId].sync();
-      console.log(`synced with ${groupId}`);
+      this.emit(GroupEvents.GroupSynced, groupId)
       return;
     }
 
     for (const group of Object.values(this.groups)) {
       await group.sync();
-      console.log(`synced with ${group.groupId}`);
+      this.emit(GroupEvents.GroupSynced, group.groupId)
     }
   }
 
