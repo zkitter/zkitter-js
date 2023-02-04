@@ -14,7 +14,7 @@ const envPlugin = new webpack.EnvironmentPlugin({
 const rules = [
     {
         test: /\.tsx?$/,
-        exclude: [/(node_modules|.webpack)/, /\.wasm$/],
+        exclude: [/(node_modules|.webpack)/],
         rules: [
             {
                 loader: 'ts-loader',
@@ -38,15 +38,15 @@ module.exports = [
             index: path.join(__dirname, 'src', 'index.ts'),
             'index.min': path.join(__dirname, 'src', 'index.ts'),
         },
-        // target: 'node',
+        target: 'node',
         devtool: 'source-map',
         // externals: [nodeExternals()],
-        experiments: {
-            asyncWebAssembly: false,
-            lazyCompilation: true,
-            syncWebAssembly: true,
-            topLevelAwait: true,
-        },
+        // experiments: {
+        //     asyncWebAssembly: false,
+        //     // lazyCompilation: true,
+        //     syncWebAssembly: true,
+        //     topLevelAwait: true,
+        // },
         resolve: {
             extensions: ['.ts', '.js', '.png', '.svg', '.wasm'],
             fallback: {
@@ -73,20 +73,21 @@ module.exports = [
             path: __dirname + '/dist',
             filename: `[name].js`,
             libraryTarget: 'umd',
+            globalObject: 'this',
             umdNamedDefine: true,
             library: {
                 name: "zkitter-js",
                 type: "umd"
             },
         },
-        optimization: {
-            minimize: isProd,
-            minimizer: [new UglifyJsPlugin({
-                // minimize: true,
-                sourceMap: true,
-                include: /\.min\.js$/,
-            })]
-        },
+        // optimization: {
+        //     minimize: isProd,
+        //     minimizer: [new UglifyJsPlugin({
+        //         // minimize: true,
+        //         sourceMap: true,
+        //         include: /\.min\.js$/,
+        //     })]
+        // },
         plugins: [
             envPlugin,
         ],
