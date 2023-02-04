@@ -14,7 +14,7 @@ const envPlugin = new webpack.EnvironmentPlugin({
 const rules = [
     {
         test: /\.tsx?$/,
-        exclude: /(node_modules|.webpack)/,
+        exclude: [/(node_modules|.webpack)/, /\.wasm$/],
         rules: [
             {
                 loader: 'ts-loader',
@@ -38,11 +38,29 @@ module.exports = [
             index: path.join(__dirname, 'src', 'index.ts'),
             'index.min': path.join(__dirname, 'src', 'index.ts'),
         },
-        target: 'node',
+        // target: 'node',
         devtool: 'source-map',
         // externals: [nodeExternals()],
+        experiments: {
+            asyncWebAssembly: false,
+            lazyCompilation: true,
+            syncWebAssembly: true,
+            topLevelAwait: true,
+        },
         resolve: {
-            extensions: ['.ts', '.js', '.png', '.svg'],
+            extensions: ['.ts', '.js', '.png', '.svg', '.wasm'],
+            fallback: {
+                "crypto": require.resolve("crypto-browserify"),
+                "os": require.resolve("os-browserify/browser"),
+                "stream": require.resolve("stream-browserify"),
+                "assert": require.resolve("assert"),
+                "url": require.resolve("url"),
+                "zlib": require.resolve("browserify-zlib"),
+                "http": require.resolve("stream-http"),
+                "https": require.resolve("https-browserify"),
+                "constants": require.resolve("constants-browserify"),
+                "fs": false,
+            },
             // modules: [path.resolve('./node_modules'), path.resolve(__dirname, compilerOptions.baseUrl)],
         },
         node: {
@@ -54,8 +72,10 @@ module.exports = [
         output: {
             path: __dirname + '/dist',
             filename: `[name].js`,
+            libraryTarget: 'umd',
+            umdNamedDefine: true,
             library: {
-                name: "zkitterjs",
+                name: "zkitter-js",
                 type: "umd"
             },
         },
