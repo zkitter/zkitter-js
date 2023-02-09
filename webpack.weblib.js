@@ -37,15 +37,7 @@ module.exports = [
         entry: {
             browser: path.join(__dirname, 'src', 'index.ts'),
         },
-        // target: 'web',
         devtool: 'source-map',
-        // externals: [nodeExternals()],
-        // experiments: {
-        //     asyncWebAssembly: false,
-        //     // lazyCompilation: true,
-        //     syncWebAssembly: true,
-        //     topLevelAwait: true,
-        // },
         externals: {
             'snarkjs': 'commonjs2 snarkjs',
             // '@zk-kit/protocols': 'commonjs2 @zk-kit/protocols',
