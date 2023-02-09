@@ -1,4 +1,4 @@
-import logger from './logger';
+// import logger from './logger';
 import EventEmitter2, {ConstructorOptions} from "eventemitter2";
 
 let callerId = 0;
@@ -24,7 +24,7 @@ export class GenericService extends EventEmitter2 {
 
       if (prop) return prop;
 
-      logger.error(`${name}.${prop} does not exist`, {
+      console.error(`${name}.${prop} does not exist`, {
         origin: this.name,
         id: id,
       });
@@ -32,7 +32,7 @@ export class GenericService extends EventEmitter2 {
       throw new Error(`${name}.${prop} does not exist`);
     }
 
-    logger.error('main service not found', {
+    console.error('main service not found', {
       origin: this.name,
       id: id,
     });
@@ -50,7 +50,7 @@ export class GenericService extends EventEmitter2 {
         try {
           return method.apply(service, args);
         } catch (e) {
-          logger.error(e.message, {
+          console.error(e.message, {
             method: `${name}.${methodName}`,
             origin: this.name,
             id: id,
@@ -58,7 +58,7 @@ export class GenericService extends EventEmitter2 {
           return Promise.reject(e);
         }
       } else {
-        logger.error(`${name}.${methodName} is not a function`, {
+        console.error(`${name}.${methodName} is not a function`, {
           origin: this.name,
           id: id,
         });
@@ -66,7 +66,7 @@ export class GenericService extends EventEmitter2 {
       }
     }
 
-    logger.error('main service not found', {
+    console.error('main service not found', {
       origin: this.name,
       id: id,
     });
@@ -96,24 +96,15 @@ export class MainService extends GenericService {
     service.name = name;
     this.services[name] = service;
     service.main = this;
-    logger.info(`added ${name}`, {
-      service: name,
-    });
     return this;
   }
 
   async start() {
     for (const name in this.services) {
-      logger.info(`starting ${name}`, {
-        service: name,
-      });
       try {
         await this.services[name].start();
-        logger.info(`started ${name}`, {
-          service: name,
-        });
       } catch (e) {
-        logger.error(e.message, {
+        console.error(e.message, {
           service: name,
         });
         return Promise.reject(e);

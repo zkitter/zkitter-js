@@ -35,9 +35,9 @@ module.exports = [
     {
         mode: isProd ? 'production' : 'development',
         entry: {
-            'node': path.join(__dirname, 'src', 'index.ts'),
+            browser: path.join(__dirname, 'src', 'index.ts'),
         },
-        target: 'node',
+        // target: 'web',
         devtool: 'source-map',
         // externals: [nodeExternals()],
         // experiments: {
@@ -46,8 +46,25 @@ module.exports = [
         //     syncWebAssembly: true,
         //     topLevelAwait: true,
         // },
+        externals: {
+            'snarkjs': 'commonjs2 snarkjs',
+            // '@zk-kit/protocols': 'commonjs2 @zk-kit/protocols',
+        },
         resolve: {
             extensions: ['.ts', '.js', '.png', '.svg', '.wasm'],
+            fallback: {
+                "crypto": require.resolve("crypto-browserify"),
+                "os": require.resolve("os-browserify/browser"),
+                "stream": require.resolve("stream-browserify"),
+                // "assert": require.resolve("assert"),
+                // "url": require.resolve("url"),
+                // "zlib": require.resolve("browserify-zlib"),
+                // "http": require.resolve("stream-http"),
+                // "https": require.resolve("https-browserify"),
+                "constants": require.resolve("constants-browserify"),
+                "fs": false,
+            },
+            // modules: [path.resolve('./node_modules'), path.resolve(__dirname, compilerOptions.baseUrl)],
         },
         node: {
             __dirname: true,
@@ -76,6 +93,12 @@ module.exports = [
         // },
         plugins: [
             envPlugin,
+            new webpack.ProvidePlugin({
+                Buffer: ['buffer', 'Buffer'],
+            }),
+            new webpack.ProvidePlugin({
+                process: 'process',
+            }),
         ],
     },
 ];

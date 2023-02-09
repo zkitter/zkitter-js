@@ -34,7 +34,7 @@ module.exports = [
     mode: isProd ? 'production' : 'development',
     entry: {
       cli: path.join(__dirname, 'src', 'cli', 'index.ts'),
-      // index: path.join(__dirname, 'src', 'index.ts'),
+      index: path.join(__dirname, 'src', 'index.ts'),
       test: path.join(__dirname, 'src', 'test.ts'),
     },
     target: 'node',
