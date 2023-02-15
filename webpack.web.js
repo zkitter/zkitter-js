@@ -69,14 +69,6 @@ module.exports = [
         entry: {
             test: path.join(__dirname, 'test.js'),
         },
-        // ignoreWarnings: [
-        //   { module: /node_modules\/gun\/gun.js/ },
-        //   { module: /node_modules\/gun\/sea.js/ },
-        // ],
-        // [
-        //     ...(isProd ? [] : devServerEntries),
-        //     `./src/app.tsx`,
-        // ],
         output: {
             path: __dirname + '/webdev',
             publicPath: isProd ? '/' : 'http://localhost:8080/',

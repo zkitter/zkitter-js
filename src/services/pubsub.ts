@@ -290,9 +290,39 @@ export class PubsubService extends GenericService {
     }
   }
 
+  async query(options: {
+    groups?: string[];
+    users?: string[];
+    threads?: string[];
+  } | null | undefined, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
+    const global = !options;
+    const { groups = [],  users = [],  threads = [] } = options || {};
+    const topics = [
+      ...groups.map(groupMessageTopic),
+      ...users.map(userMessageTopic),
+      ...threads.map(threadTopic),
+    ];
+    const decoders = global ? [createDecoder(globalMessageTopic())] : topics.map(createDecoder);
+
+    for await (const messagesPromises of this.waku.store.queryGenerator(decoders)) {
+      const wakuMessages = await Promise.all(messagesPromises);
+
+      for (let message of wakuMessages.filter(msg => !!msg)) {
+        if (message?.payload) {
+          const decoded = Message.decode(message.payload);1
+          const msg = ZkitterMessage.fromHex(decoded.data);
+          const proof: Proof = JSON.parse(decoded.proof);
+          if (msg && await this.validateMessage(msg, proof)) {
+            await cb(msg, proof);
+          }
+        }
+      }
+    }
+  }
+
   async subscribeUser(address: string, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
     const decoder = createDecoder(userMessageTopic(address));
-    this.waku.filter.subscribe([decoder], async wakuMessage => {
+    return this.waku.filter.subscribe([decoder], async wakuMessage => {
       const decoded = Message.decode(wakuMessage.payload!);
       const msg = ZkitterMessage.fromHex(decoded.data);
       const proof: Proof = JSON.parse(decoded.proof);
@@ -303,7 +333,7 @@ export class PubsubService extends GenericService {
   }
 
   async subscribeUsers(addresses: string[], cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
-    this.waku.filter.subscribe(addresses.map(addy => createDecoder(userMessageTopic(addy))), async wakuMessage => {
+    return this.waku.filter.subscribe(addresses.map(addy => createDecoder(userMessageTopic(addy))), async wakuMessage => {
       const decoded = Message.decode(wakuMessage.payload!);
       const msg = ZkitterMessage.fromHex(decoded.data);
       const proof: Proof = JSON.parse(decoded.proof);
@@ -315,7 +345,7 @@ export class PubsubService extends GenericService {
 
   async subscribeAll(cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
     const decoder = createDecoder(globalMessageTopic());
-    this.waku.filter.subscribe([decoder], async wakuMessage => {
+    return this.waku.filter.subscribe([decoder], async wakuMessage => {
       const decoded = Message.decode(wakuMessage.payload!);
       const msg = ZkitterMessage.fromHex(decoded.data);
       const proof: Proof = JSON.parse(decoded.proof);
@@ -327,7 +357,19 @@ export class PubsubService extends GenericService {
 
   async subscribeThread(hash: string, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
     const decoder = createDecoder(threadTopic(hash));
-    this.waku.filter.subscribe([decoder], async wakuMessage => {
+    return this.waku.filter.subscribe([decoder], async wakuMessage => {
+      const decoded = Message.decode(wakuMessage.payload!);
+      const msg = ZkitterMessage.fromHex(decoded.data);
+      const proof: Proof = JSON.parse(decoded.proof);
+      if (msg && await this.validateMessage(msg, proof)) {
+        await cb(msg, proof);
+      }
+    });
+  }
+
+  async subscribeGroup(groupId: string, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
+    const decoder = createDecoder(groupMessageTopic(groupId));
+    return this.waku.filter.subscribe([decoder], async wakuMessage => {
       const decoded = Message.decode(wakuMessage.payload!);
       const msg = ZkitterMessage.fromHex(decoded.data);
       const proof: Proof = JSON.parse(decoded.proof);
@@ -338,7 +380,31 @@ export class PubsubService extends GenericService {
   }
 
   async subscribeThreads(hashes: string[], cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
-    this.waku.filter.subscribe(hashes.map(hash => createDecoder(threadTopic(hash))), async wakuMessage => {
+    return this.waku.filter.subscribe(hashes.map(hash => createDecoder(threadTopic(hash))), async wakuMessage => {
+      const decoded = Message.decode(wakuMessage.payload!);
+      const msg = ZkitterMessage.fromHex(decoded.data);
+      const proof: Proof = JSON.parse(decoded.proof);
+      if (msg && await this.validateMessage(msg, proof)) {
+        await cb(msg, proof);
+      }
+    });
+  }
+
+  async subscribe(options: {
+    groups?: string[];
+    users?: string[];
+    threads?: string[];
+  } | null | undefined, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
+    const global = !options;
+    const { groups = [],  users = [],  threads = [] } = options || {};
+    const topics = [
+      ...groups.map(groupMessageTopic),
+      ...users.map(userMessageTopic),
+      ...threads.map(threadTopic),
+    ];
+    const decoders = global ? [createDecoder(globalMessageTopic())] : topics.map(createDecoder);
+
+    return this.waku.filter.subscribe(decoders, async wakuMessage => {
       const decoded = Message.decode(wakuMessage.payload!);
       const msg = ZkitterMessage.fromHex(decoded.data);
       const proof: Proof = JSON.parse(decoded.proof);

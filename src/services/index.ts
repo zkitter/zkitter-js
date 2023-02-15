@@ -25,11 +25,11 @@ import {GlobalGroup} from "../adapters/groups/global";
 export enum ZkitterEvents {
   ArbitrumSynced = 'Users.ArbitrumSynced',
   NewUserCreated = 'Users.NewUserCreated',
-  InvalidEventData = 'Users.InvalidEventData',
   GroupSynced = 'Group.GroupSynced',
   NewGroupMemberCreated = 'Group.NewGroupMemberCreated',
-  AlreadyExist = 'Level.AlreadyExist',
   NewMessageCreated = 'Zkitter.NewMessageCreated',
+  InvalidEventData = 'Users.InvalidEventData',
+  AlreadyExist = 'Level.AlreadyExist',
 }
 
 export class Zkitter extends GenericService {
@@ -51,23 +51,35 @@ export class Zkitter extends GenericService {
     groups: GroupService;
   };
 
-  static async initialize(options: {
-    arbitrumProvider: string;
+  private subscriptions: {
+    groups: { [groupId: string]: string };
+    users: { [address: string]: string };
+    threads: { [hash: string]: string };
+    all: boolean;
+  };
+
+  private unsubscribe: (() => Promise<void>)|null;
+
+  static async initialize(options?: {
+    arbitrumProvider?: string;
     groups?: GenericGroupAdapter[];
     db?: GenericDBAdapterInterface;
     historyAPI?: string;
     lazy?: boolean;
   }): Promise<Zkitter> {
-    const db = options.db || await LevelDBAdapter.initialize();
-    const users = new UserService({db, arbitrumProvider: options.arbitrumProvider});
+    const db = options?.db || await LevelDBAdapter.initialize();
+    const users = new UserService({
+      db,
+      arbitrumProvider: options?.arbitrumProvider || 'https://arb1.arbitrum.io/rpc',
+    });
     const posts = new PostService({db});
     const moderations = new ModerationService({db});
     const connections = new ConnectionService({db});
     const profile = new ProfileService({db});
     const groups = new GroupService({ db });
-    const pubsub = await PubsubService.initialize(users, groups, options.lazy);
+    const pubsub = await PubsubService.initialize(users, groups, options?.lazy);
 
-    const grouplist = options.groups || [
+    const grouplist = options?.groups || [
       new GlobalGroup({ db }),
       new TazGroup({ db }),
       new InterepGroup({ db, groupId: 'interrep_twitter_unrated' }),
@@ -97,7 +109,7 @@ export class Zkitter extends GenericService {
       connections,
       profile,
       groups,
-      historyAPI: options.historyAPI,
+      historyAPI: options?.historyAPI,
     });
   }
 
@@ -114,6 +126,13 @@ export class Zkitter extends GenericService {
   }) {
     super(opts);
     this.db = opts.db;
+    this.unsubscribe = null;
+    this.subscriptions = {
+      all: false,
+      users: {},
+      groups: {},
+      threads: {},
+    };
     this.historyAPI = opts.historyAPI || 'https://api.zkitter.com/v1/history';
 
     this.services = {
@@ -174,6 +193,118 @@ export class Zkitter extends GenericService {
         });
       }
     };
+  }
+
+  private appendNewSubscription(options?: {
+    groups?: string[];
+    users?: string[];
+    threads?: string[];
+  } | null) {
+    this.subscriptions.all = !options;
+
+    if (options?.users?.length) {
+      this.subscriptions.users = {
+        ...this.subscriptions.users,
+        ...options.users.reduce((m: any, a) => {
+          m[a] = a;
+          return m;
+        }, {}),
+      };
+    }
+
+    if (options?.groups?.length) {
+      this.subscriptions.groups = {
+        ...this.subscriptions.groups,
+        ...options.groups.reduce((m: any, a) => {
+          m[a] = a;
+          return m;
+        }, {}),
+      };
+    }
+
+    if (options?.threads?.length) {
+      this.subscriptions.threads = {
+        ...this.subscriptions.threads,
+        ...options.threads.reduce((m: any, a) => {
+          m[a] = a;
+          return m;
+        }, {}),
+      };
+    }
+  }
+
+  /**
+   * start zkitter node
+   *
+   * passing null/undefined as input will start zkitter node
+   * without subscribing to any message. use zkitter.subscribe
+   * to subcribe to new messages
+   *
+   * @param options.groups string[]     list of group ids
+   * @param options.users string[]     list of user address
+   * @param options.threads string[]     list of thread hashes
+   *
+   */
+  async start(options?: {
+    groups?: string[];
+    users?: string[];
+    threads?: string[];
+  } | null) {
+    if (options) {
+      this.appendNewSubscription(options);
+    }
+
+    if (options?.users?.length) {
+      for (const user of options.users) {
+        await this.queryHistory(user);
+      }
+    }
+
+    if (options?.groups?.length) {
+      await this.queryHistory('');
+    }
+
+    if (!options) {
+      await this.queryHistory();
+    }
+
+    await this.services.users.watchArbitrum();
+    await this.services.groups.watch();
+    await this.subscribe(options);
+  }
+
+  /**
+   * Subscribe to new messages (pass null will subcribe to all messages)
+   *
+   * @param options.groups string[]     list of group ids
+   * @param options.users string[]     list of user address
+   * @param options.threads string[]     list of thread hashes
+   */
+  async subscribe(options?: {
+    groups?: string[];
+    users?: string[];
+    threads?: string[];
+  } | null) {
+    this.appendNewSubscription(options);
+
+    if (this.unsubscribe) {
+      await this.unsubscribe();
+    }
+
+    const { all, threads, users, groups } = this.subscriptions;
+    const subs = all ? null : {
+      threads: Object.keys(threads),
+      users: Object.keys(users),
+      groups: Object.keys(groups),
+    };
+
+    this.unsubscribe = await this.services.pubsub.subscribe(subs, async (msg, proof) => {
+      if (msg) {
+        await this.insert(msg, proof);
+      }
+    });
+
+    return this.unsubscribe;
   }
 
   async syncUsers() {
@@ -279,94 +410,74 @@ export class Zkitter extends GenericService {
     });
   }
 
-  async queryHistory(): Promise<void> {
-    const downloaded = await this.db.getHistoryDownloaded();
+  async queryHistory(user?: string): Promise<void> {
+    const downloaded = await this.db.getHistoryDownloaded(user);
 
-    if (!downloaded) {
-      const resp = await fetch(this.historyAPI);
-      const json = await resp.json();
-      return new Promise(async (resolve, reject) => {
-        if (json.error) return reject(json.payload);
+    if (downloaded) return;
 
-        try {
-          for (const msg of json.payload) {
-            if (!msg) continue;
-            const {creator} = parseMessageId(msg.messageId);
-            let message: Message | null = null;
+    const query = typeof user === "string"
+      ? user ? '?user=' + 'user' : '?global=true' : '';
 
-            switch (msg.type) {
-              case MessageType.Post:
-                message = new Post({
-                  type: msg.type,
-                  subtype: msg.subtype,
-                  payload: msg.payload,
-                  createdAt: new Date(msg.createdAt),
-                  creator,
-                });
-                break;
-              case MessageType.Moderation:
-                message = new Moderation({
-                  type: msg.type,
-                  subtype: msg.subtype,
-                  payload: msg.payload,
-                  createdAt: new Date(msg.createdAt),
-                  creator,
-                });
-                break;
-              case MessageType.Connection:
-                message = new Connection({
-                  type: msg.type,
-                  subtype: msg.subtype,
-                  payload: msg.payload,
-                  createdAt: new Date(msg.createdAt),
-                  creator,
-                });
-                break;
-              case MessageType.Profile:
-                message = new Profile({
-                  type: msg.type,
-                  subtype: msg.subtype,
-                  payload: msg.payload,
-                  createdAt: new Date(msg.createdAt),
-                  creator,
-                });
-                break;
-            }
+    const resp = await fetch(this.historyAPI + query);
+    const json = await resp.json();
 
-            if (message) {
-              await this.insert(message, { type: '', proof: null, group: msg.group });
-            }
+    return new Promise(async (resolve, reject) => {
+      if (json.error) return reject(json.payload);
+
+      try {
+        for (const msg of json.payload) {
+          if (!msg) continue;
+          const {creator} = parseMessageId(msg.messageId);
+          let message: Message | null = null;
+
+          switch (msg.type) {
+            case MessageType.Post:
+              message = new Post({
+                type: msg.type,
+                subtype: msg.subtype,
+                payload: msg.payload,
+                createdAt: new Date(msg.createdAt),
+                creator,
+              });
+              break;
+            case MessageType.Moderation:
+              message = new Moderation({
+                type: msg.type,
+                subtype: msg.subtype,
+                payload: msg.payload,
+                createdAt: new Date(msg.createdAt),
+                creator,
+              });
+              break;
+            case MessageType.Connection:
+              message = new Connection({
+                type: msg.type,
+                subtype: msg.subtype,
+                payload: msg.payload,
+                createdAt: new Date(msg.createdAt),
+                creator,
+              });
+              break;
+            case MessageType.Profile:
+              message = new Profile({
+                type: msg.type,
+                subtype: msg.subtype,
+                payload: msg.payload,
+                createdAt: new Date(msg.createdAt),
+                creator,
+              });
+              break;
           }
 
-          await this.db.setHistoryDownloaded(true);
-          resolve();
-        } catch (e) {
-          reject(e);
+          if (message) {
+            await this.insert(message, { type: '', proof: null, group: msg.group });
+          }
         }
-      });
-    }
-  }
 
-  async subscribe() {
-    return this.services.pubsub.subscribeAll(async (msg, proof) => {
-      if (msg) {
-        await this.insert(msg, proof);
-      }
-    });
-  }
-
-  async subscribeUsers(addresses: string[]) {
-    return this.services.pubsub.subscribeUsers(addresses, async (msg, proof) => {
-      if (msg) {
-        await this.insert(msg, proof);
-      }
-    });
-  }
-
-  async subscribeThreads(hashes: string[]) {
-    return this.services.pubsub.subscribeThreads(hashes, async (msg, proof) => {
-      if (msg) {
-        await this.insert(msg, proof);
+        await this.db.setHistoryDownloaded(true, user);
+        resolve();
+      } catch (e) {
+        reject(e);
       }
     });
   }

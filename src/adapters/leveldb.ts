@@ -85,7 +85,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   messageDB<messageType>() {
-    return this.db.sublevel<string, messageType>('posts', { valueEncoding: 'json' });
+    return this.db.sublevel<string, messageType>('messages', { valueEncoding: 'json' });
   }
 
   moderationsDB(threadHash: string) {
@@ -98,6 +98,10 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
   userPostsDB(address: string) {
     return this.db.sublevel<string, string>(address + '/posts', { valueEncoding: 'json' });
+  }
+
+  groupPostsDB(groupId: string) {
+    return this.db.sublevel<string, string>(groupId + '/gposts', { valueEncoding: 'json' });
   }
 
   userMessageDB(address: string) {
@@ -139,12 +143,14 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return String(arbitrumProvider);
   }
 
-  async setHistoryDownloaded(downloaded: boolean): Promise<void> {
-    return this.appDB.put(keys.APP.historyDownloaded, downloaded);
+  async setHistoryDownloaded(downloaded: boolean, user?: string): Promise<void> {
+    const mod = typeof user === 'string' ? '/' + user : '';
+    return this.appDB.put(keys.APP.historyDownloaded + mod, downloaded);
   }
 
-  async getHistoryDownloaded(): Promise<boolean> {
-    return this.appDB.get(keys.APP.historyDownloaded)
+  async getHistoryDownloaded(user?: string): Promise<boolean> {
+    const mod = typeof user === 'string' ? '/' + user : '';
+    return this.appDB.get(keys.APP.historyDownloaded + mod)
       .then(historyDownloaded => !!historyDownloaded)
       .catch(() => false);
   }
@@ -599,6 +605,13 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       const groupId = await this.findGroupHash(proof.proof.publicSignals.merkleRoot as string);
       postMetaDirty = true;
       postMeta.groupId = groupId || '';
+      operations.push({
+        type: "put",
+        sublevel: this.groupPostsDB(groupId || ''),
+        key: encodedKey,
+        // @ts-ignore
+        value: json.hash,
+      });
     } else if (proof.type === '' && proof.group) {
       postMetaDirty = true;
       postMeta.groupId = proof.group;
@@ -721,6 +734,35 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     const posts: Post[] = [];
 
     for await (const value of this.userPostsDB(address).values(options)) {
+      const post = await this.messageDB<PostJSON>().get(value);
+      const { messageId, ...json } = post;
+      const {creator} = parseMessageId(messageId);
+
+      posts.push(new Post({
+        ...json,
+        creator,
+        createdAt: new Date(json.createdAt),
+      }));
+    }
+
+    return posts;
+  }
+
+  async getGroupPosts(groupId: string, limit?: number, offset?: number|string): Promise<Post[]> {
+    const options: any = { valueEncoding: 'json', reverse: true };
+
+    if (typeof limit === 'number') options.limit = limit;
+
+    if (typeof offset === 'string') {
+      const offsetPost = await this.messageDB<PostJSON>().get(offset).catch(() => null);
+      if (offsetPost) {
+        options.lt = bytewise.encode(new Date(offsetPost.createdAt));
+      }
+    }
+
+    const posts: Post[] = [];
+
+    for await (const value of this.groupPostsDB(groupId).values(options)) {
       const post = await this.messageDB<PostJSON>().get(value);
       const { messageId, ...json } = post;
       const {creator} = parseMessageId(messageId);

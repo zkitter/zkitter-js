@@ -18,7 +18,8 @@ export class GlobalGroup extends EventEmitter2 implements GenericGroupAdapter {
   }
 
   async sync() {
-    const resp = await fetch(this.api);
+    const members = await this.members();
+    const resp = await fetch(this.api + '?offset=' + members.length);
     const json = await resp.json();
 
     if (!json.error) {

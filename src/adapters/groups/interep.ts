@@ -20,7 +20,8 @@ export class InterepGroup extends EventEmitter2 implements GenericGroupAdapter {
   }
 
   async sync() {
-    const resp = await fetch(this.api + this.groupId);
+    const members = await this.members();
+    const resp = await fetch(this.api + this.groupId + '?offset=' + members.length);
     const json = await resp.json();
 
     if (!json.error) {
