@@ -81,7 +81,8 @@ export class PubsubService extends GenericService {
     switch (message.type) {
       case MessageType.Moderation:
         const msg = message as Moderation;
-        const isOP = msg.creator === msg.payload.reference;
+        const {creator} = parseMessageId(msg.payload.reference);
+        const isOP = msg.creator === creator;
         if (!isOP) {
           if ([
             ModerationMessageSubType.ThreadMention,
