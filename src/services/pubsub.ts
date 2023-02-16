@@ -14,9 +14,9 @@ import {
 import {Message} from "../models/message";
 import {Proof, ProofType} from "../models/proof";
 import {UserService} from "./users";
-import {signWithP256, verifySignatureP256} from "../utils/crypto";
+import {sha256, signWithP256, verifySignatureP256} from "../utils/crypto";
 import {ConstructorOptions} from "eventemitter2";
-import {ZkIdentity} from "@zk-kit/identity";
+import {Strategy, ZkIdentity} from "@zk-kit/identity";
 import {GroupService} from "./groups";
 import {createRLNProof, verifyRLNProof} from "../utils/zk";
 
@@ -100,7 +100,8 @@ export class PubsubService extends GenericService {
         return !!user?.pubkey && verifySignatureP256(user.pubkey, hash, proof.signature);
       case ProofType.rln:
         const {proof: fullProof} = proof;
-        const group = await this.groups.getGroupByRoot(fullProof.publicSignals.merkleRoot as string);
+        const group = await this.groups.getGroupByRoot(fullProof.publicSignals.merkleRoot as string)
+          .catch(() => null);
         return verifyRLNProof(hash, group, fullProof);
       default:
         return false;
@@ -115,6 +116,38 @@ export class PubsubService extends GenericService {
         message.createdAt,
       )
       .encode();
+  }
+
+  async createProof(opts: {
+    hash: string;
+    address?: string;
+    privateKey?: string;
+    zkIdentity?: ZkIdentity,
+    groupId?: string;
+  }): Promise<Proof> {
+    const { hash, address, privateKey, zkIdentity, groupId } = opts;
+    let identity = zkIdentity;
+
+    if (!address && privateKey) {
+      const zkseed = await signWithP256(privateKey, 'signing for zk identity - 0');
+      const zkHex = await sha256(zkseed);
+      identity = new ZkIdentity(Strategy.MESSAGE, zkHex);
+    }
+
+    if (address && privateKey) {
+      const sig = signWithP256(privateKey, hash);
+      return {signature: sig, type: ProofType.signature};
+    }
+
+    if (identity) {
+      const identityCommitment = identity.genIdentityCommitment();
+      const idCommitmentHex = '0x' + identityCommitment.toString(16);
+      const merklePath = await this.groups.getMerklePath(idCommitmentHex, groupId);
+      const proof = await createRLNProof(hash, identity, merklePath);
+      return {proof, type: ProofType.rln};
+    }
+
+    throw new Error('invalid proof inputs');
   }
 
   async moderate(options: {
