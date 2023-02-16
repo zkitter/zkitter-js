@@ -280,6 +280,17 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return usermeta;
   }
 
+  async getFollowings(address: string): Promise<string[]> {
+    const followings = [];
+    for (const hash of await this.userMessageDB(address).values().all()) {
+      const msg = await this.messageDB<ConnectionJSON>().get(hash);
+      if (msg.type === MessageType.Connection && msg.subtype === ConnectionMessageSubType.Follow) {
+        followings.push(msg.payload.name);
+      }
+    }
+    return followings;
+  }
+
   async insertGroupMember(groupId: string, member: GroupMember): Promise<GroupMember|null> {
     const existing = await this.groupMembersDB(groupId).get(member.idCommitment).catch(() => null);
 

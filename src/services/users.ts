@@ -195,6 +195,10 @@ export class UserService extends GenericService {
     return this.db.getUserMeta(address);
   }
 
+  async getFollowings(address: string): Promise<string[]> {
+    return this.db.getFollowings(address);
+  }
+
   async getMessagesByUser(address: string, limit?: number, offset?: number|string) {
     return this.db.getMessagesByUser(address, limit, offset);
   }

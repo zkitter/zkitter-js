@@ -17,6 +17,7 @@ export type MessageOption = {
 
 export class Message {
   type: MessageType;
+  subtype: string;
   creator: string;
   createdAt: Date;
 

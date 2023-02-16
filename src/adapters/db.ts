@@ -27,6 +27,7 @@ export interface GenericDBAdapterInterface {
   getPostMeta: (postHash: string) => Promise<PostMeta>;
   getPost: (hash: string) => Promise<Post|null>;
   getPosts: (limit?: number, offset?: number|string) => Promise<Post[]>;
+  getFollowings: (address: string) => Promise<string[]>;
   getHomefeed: (
     filter: {
       addresses: { [address: string]: true };
