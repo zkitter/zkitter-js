@@ -66,6 +66,7 @@ export class Zkitter extends GenericService {
     db?: GenericDBAdapterInterface;
     historyAPI?: string;
     lazy?: boolean;
+    topicPrefix?: string;
   }): Promise<Zkitter> {
     const db = options?.db || await LevelDBAdapter.initialize();
     const users = new UserService({
@@ -77,7 +78,7 @@ export class Zkitter extends GenericService {
     const connections = new ConnectionService({db});
     const profile = new ProfileService({db});
     const groups = new GroupService({ db });
-    const pubsub = await PubsubService.initialize(users, groups, options?.lazy);
+    const pubsub = await PubsubService.initialize(users, groups, options?.lazy, options?.topicPrefix);
 
     const grouplist = options?.groups || [
       new GlobalGroup({ db }),
@@ -235,15 +236,7 @@ export class Zkitter extends GenericService {
 
   /**
    * start zkitter node
-   *
-   * passing null/undefined as input will start zkitter node
-   * without subscribing to any message. use zkitter.subscribe
-   * to subcribe to new messages
-   *
-   * @param options.groups string[]     list of group ids
-   * @param options.users string[]     list of user address
-   * @param options.threads string[]     list of thread hashes
-   *
+   * use zkitter.subscribe to subcribe to new messages
    */
   async start() {
     await this.services.users.watchArbitrum();

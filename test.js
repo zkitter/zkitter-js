@@ -1,6 +1,6 @@
 (async () => {
     const Web3 = require('web3');
-    const {Zkitter, generateIdentity} = require('./dist/browser');
+    const {Zkitter, generateIdentity} = require('./dist');
     const zkitter = await Zkitter.initialize();
     zkitter.on('Users.ArbitrumSynced', console.log.bind(console));
     zkitter.on('Users.NewUserCreated', console.log.bind(console));
@@ -11,17 +11,17 @@
     await zkitter.subscribe();
     const httpProvider = new Web3.providers.HttpProvider('https://arb1.arbitrum.io/rpc');
     const web3 = new Web3(httpProvider);
-    web3.eth.accounts.wallet.add('');
-    const account = web3.eth.accounts.wallet[0].address;
-    const sign = web3.eth.accounts.wallet[0];
-    console.log(account, web3.eth.personal, sign.sign);
-    const keys = await generateIdentity(0, async data => {
-        const {signature} = await sign.sign(data);
-        return signature;
-    });
-    // console.log(await zkitter.getGroupMembers('semaphore_taz_members'))
-    console.log(account);
-    console.log(await zkitter.getUserPosts(account));
+    // web3.eth.accounts.wallet.add('');
+    // const account = web3.eth.accounts.wallet[0].address;
+    // const sign = web3.eth.accounts.wallet[0];
+    // console.log(account, web3.eth.personal, sign.sign);
+    // const keys = await generateIdentity(0, async data => {
+    //     const {signature} = await sign.sign(data);
+    //     return signature;
+    // });
+    // // console.log(await zkitter.getGroupMembers('semaphore_taz_members'))
+    // console.log(account);
+    // console.log(await zkitter.getUserPosts(account));
     // await zkitter.write({
     //     creator: account,
     //     content: 'hello zkitter',

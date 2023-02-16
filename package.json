@@ -1,6 +1,6 @@
 {
   "name": "zkitter-js",
-  "version": "1.0.14",
+  "version": "1.1.1",
   "description": "Implementation of Zkitter using Waku and LevelDB",
   "main": "dist/index.js",
   "scripts": {
@@ -16,7 +16,7 @@
     "watch-cli": "webpack --config webpack.bin.js --watch",
     "build-cli": "webpack --config webpack.bin.js",
     "dev": "NODE_ENV=development concurrently --kill-others-on-fail npm:watch-cli npm:watch-lib npm:watch-weblib npm:dev-ui",
-    "build": "NODE_ENV=production npm run build-cli && npm run build-lib",
+    "build": "NODE_ENV=production concurrently --kill-others-on-fail npm:build-cli npm:build-lib npm:build-weblib",
     "start": "NODE_ENV=production npm run build && node ./build/server.js"
   },
   "author": "0xtsukino",
