@@ -245,32 +245,9 @@ export class Zkitter extends GenericService {
    * @param options.threads string[]     list of thread hashes
    *
    */
-  async start(options?: {
-    groups?: string[];
-    users?: string[];
-    threads?: string[];
-  } | null) {
-    if (options) {
-      this.appendNewSubscription(options);
-    }
-
-    if (options?.users?.length) {
-      for (const user of options.users) {
-        await this.queryHistory(user);
-      }
-    }
-
-    if (options?.groups?.length) {
-      await this.queryHistory('');
-    }
-
-    if (!options) {
-      await this.queryHistory();
-    }
-
+  async start() {
     await this.services.users.watchArbitrum();
     await this.services.groups.watch();
-    await this.subscribe(options);
   }
 
   /**
@@ -287,6 +264,20 @@ export class Zkitter extends GenericService {
   } | null) {
     this.appendNewSubscription(options);
 
+    if (options?.users?.length) {
+      for (const user of options.users) {
+        await this.queryHistory(user);
+      }
+    }
+
+    if (options?.groups?.length) {
+      await this.queryHistory('');
+    }
+
+    if (!options) {
+      await this.queryHistory();
+    }
+
     if (this.unsubscribe) {
       await this.unsubscribe();
     }
@@ -298,6 +289,7 @@ export class Zkitter extends GenericService {
       groups: Object.keys(groups),
     };
 
+    await this.query(subs);
     this.unsubscribe = await this.services.pubsub.subscribe(subs, async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
@@ -305,6 +297,18 @@ export class Zkitter extends GenericService {
     });
 
     return this.unsubscribe;
+  }
+
+  async query(options?: {
+    groups?: string[];
+    users?: string[];
+    threads?: string[];
+  } | null) {
+    return this.services.pubsub.query(options, async (msg, proof) => {
+      if (msg) {
+        await this.insert(msg, proof);
+      }
+    })
   }
 
   async syncUsers() {
@@ -384,6 +388,14 @@ export class Zkitter extends GenericService {
         this.emit(ZkitterEvents.AlreadyExist, msg);
       }
     }
+  }
+
+  async queryThread(address: string) {
+    return this.services.pubsub.queryThread(address, async (msg, proof) => {
+      if (msg) {
+        await this.insert(msg, proof);
+      }
+    });
   }
 
   async queryUser(address: string) {

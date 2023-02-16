@@ -248,6 +248,27 @@ export class PubsubService extends GenericService {
     }
   }
 
+  async queryThread(hash: string, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
+    const decoder = createDecoder(threadTopic(hash));
+
+    for await (const messagesPromises of this.waku.store.queryGenerator(
+      [decoder],
+    )) {
+      const wakuMessages = await Promise.all(messagesPromises);
+
+      for (let message of wakuMessages.filter(msg => !!msg)) {
+        if (message?.payload) {
+          const decoded = Message.decode(message.payload);1
+          const msg = ZkitterMessage.fromHex(decoded.data);
+          const proof: Proof = JSON.parse(decoded.proof);
+          if (msg && await this.validateMessage(msg, proof)) {
+            await cb(msg, proof);
+          }
+        }
+      }
+    }
+  }
+
   async queryGroup(groupId: string, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
     const decoder = createDecoder(groupMessageTopic(groupId));
 

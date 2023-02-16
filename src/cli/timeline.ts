@@ -48,7 +48,6 @@ export async function printPosts(zkitter: Zkitter, posts: Post[]) {
     const pm = await zkitter.getPostMeta(post.hash());
     const handle = u?.address ? '@' + u.address :  '';
     const nickname = um.nickname || u?.address || pm.groupId || 'anonymous';
-
     console.log(`${red(nickname)} ${yellowBright(handle)} ${magenta(moment(post.createdAt).format('YYYY/MM/DD LTS'))}`);
     console.log(green('[Hash: ' + post.hash() + ']'))
     console.log(`${blue('✉ ' + pm.reply)}  ${cyan('↩ ' + pm.repost)}  ${red('♥ ' + pm.like)}`)

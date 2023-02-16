@@ -13,6 +13,7 @@ export class ProfileService extends GenericService {
   }
 
   async insert(profile: Profile, proof: Proof) {
+    if (!profile.creator) return;
     return this.db.insertProfile(profile, proof);
   }
 }

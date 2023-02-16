@@ -23,14 +23,13 @@ export function up(program: Command) {
       });
 
       zkitter.on(UserServiceEvents.ArbitrumSynced, data => {
-        const {toBlock, fromBlock} = data;
-        const completion = ((fromBlock / toBlock) * 100).toFixed(2);
-        // success(`Synced with Arbitrum Mainnet from block #${fromBlock} to #${toBlock}(${completion}%)`);
+        const {toBlock, fromBlock, latest} = data;
+        const completion = ((fromBlock / latest) * 100).toFixed(2);
+        success(`Synced with Arbitrum Mainnet from block #${fromBlock} to #${toBlock}(${completion}%)`);
       });
 
-      await zkitter.queryHistory();
+      await zkitter.start();
       await zkitter.subscribe();
-      await zkitter.watchArbitrum();
 
       console.log('Subscribing to all events (<Ctrl + C> to exit)...');
 

@@ -16,11 +16,6 @@ export function init(program: Command) {
         return;
       }
 
-      if (!options.arbitrumHttpProvider && arbitrumHttpProvider) {
-        warning('zkitter already initialized');
-        return;
-      }
-
       if (options.arbitrumHttpProvider && arbitrumHttpProvider !== options.arbitrumHttpProvider) {
         try {
           new URL(options.arbitrumHttpProvider);

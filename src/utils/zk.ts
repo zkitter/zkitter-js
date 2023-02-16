@@ -36,11 +36,11 @@ export const verifyRLNProof = async (hash: string, group: string | null, proof: 
   }
 
   if (!group) {
-    throw new Error('cannot find group by the merkle root: ' + proof.publicSignals.merkleRoot);
+    return false;
   }
 
   if (signalHash !== BigInt(proof.publicSignals.signalHash)) {
-    throw new Error('signal hash does not match');
+    return false;
   }
 
   return true;

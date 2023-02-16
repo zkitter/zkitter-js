@@ -140,7 +140,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
   async getArbitrumProvider(): Promise<string> {
     const arbitrumProvider = await this.appDB.get(keys.APP.arbitrumProvider).catch(() => '');
-    return String(arbitrumProvider);
+    return String(arbitrumProvider) || 'https://arb1.arbitrum.io/rpc';
   }
 
   async setHistoryDownloaded(downloaded: boolean, user?: string): Promise<void> {
@@ -659,6 +659,13 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       postMetaDirty = true;
       postMeta.repost = postMeta.repost + 1;
 
+      operations.push({
+        type: 'put',
+        sublevel: this.postlistDB,
+        key: encodedKey,
+        // @ts-ignore
+        value: json.hash,
+      });
       operations.push({
         type: 'put',
         sublevel: this.repostDB(hash),

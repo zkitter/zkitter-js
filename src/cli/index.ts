@@ -1,4 +1,6 @@
 #!/usr/bin/env NODE_NO_WARNINGS=1 node
+
+process.removeAllListeners('warning');
 import {program} from "commander";
 import {version} from "../../package.json";
 import {init} from "./init";
