@@ -35,3 +35,21 @@ export const hexToUintArray = (hex: string): Uint8Array => {
 export const hexToArrayBuf = (hex: string): ArrayBuffer => {
   return hexToUintArray(hex).buffer;
 };
+
+export const toBigInt = (value: string | number): BigInt => {
+  if (typeof value === 'number') {
+    return BigInt(value);
+  }
+
+  if (/[a-z]/gi.test(value)) {
+    if (value.slice(0, 2) === '0x') return BigInt(value);
+    return BigInt('0x' + value);
+  }
+
+  return BigInt(value);
+};
+
+export const hexify = (value: string | number): string => {
+  return '0x' + toBigInt(value).toString(16);
+}
+

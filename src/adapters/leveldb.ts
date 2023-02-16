@@ -2,6 +2,7 @@ import {GenericDBAdapterInterface} from "./db";
 import {BatchOperation, Level} from "level";
 import {User} from "../models/user";
 import {
+  AnyMessage,
   Connection,
   ConnectionJSON,
   ConnectionMessageSubType,
@@ -998,7 +999,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return ids;
   }
 
-  async getMessagesByUser(address: string, limit?: number, offset?: number|string): Promise<Message[]> {
+  async getMessagesByUser(address: string, limit?: number, offset?: number|string): Promise<AnyMessage[]> {
     const options: any = { valueEncoding: 'json' };
 
     if (typeof limit === 'number') options.limit = limit;
@@ -1010,7 +1011,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       }
     }
 
-    const ids: Message[] = [];
+    const ids: AnyMessage[] = [];
 
     for await (const value of this.userMessageDB(address).values(options)) {
       const json = await this.messageDB<PostJSON|ModerationJSON|ProfileJSON|ConnectionJSON>().get(value);

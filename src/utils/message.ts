@@ -15,6 +15,8 @@ export type MessageOption = {
   createdAt?: Date;
 };
 
+export type AnyMessage = Post | Moderation | Connection | Profile;
+
 export class Message {
   type: MessageType;
   subtype: string;

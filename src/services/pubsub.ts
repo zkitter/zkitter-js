@@ -100,7 +100,10 @@ export class PubsubService extends GenericService {
         const user = await this.users.getUser(message.creator);
         return !!user?.pubkey && verifySignatureP256(user.pubkey, hash, proof.signature);
       case ProofType.rln:
-        const {proof: fullProof} = proof;
+        const {proof: fullProof, groupId} = proof;
+        if (groupId) {
+          await this.groups.sync(groupId);
+        }
         const group = await this.groups.getGroupByRoot(fullProof.publicSignals.merkleRoot as string)
           .catch(() => null);
         return verifyRLNProof(hash, group, fullProof);
@@ -129,7 +132,7 @@ export class PubsubService extends GenericService {
     const { hash, address, privateKey, zkIdentity, groupId } = opts;
     let identity = zkIdentity;
 
-    if (!address && privateKey && (!groupId || groupId === 'zksocial_all')) {
+    if (!address && privateKey) {
       const zkseed = await signWithP256(privateKey, 'signing for zk identity - 0');
       const zkHex = await sha256(zkseed);
       identity = new ZkIdentity(Strategy.MESSAGE, zkHex);
@@ -145,7 +148,7 @@ export class PubsubService extends GenericService {
       const idCommitmentHex = '0x' + identityCommitment.toString(16);
       const merklePath = await this.groups.getMerklePath(idCommitmentHex, groupId);
       const proof = await createRLNProof(hash, identity, merklePath);
-      return {proof, type: ProofType.rln};
+      return {proof, type: ProofType.rln, groupId: groupId || ''};
     }
 
     throw new Error('invalid proof inputs');
@@ -177,7 +180,7 @@ export class PubsubService extends GenericService {
       const idCommitmentHex = '0x' + identityCommitment.toString(16);
       const merklePath = await this.groups.getMerklePath(idCommitmentHex, options.groupId);
       const proof = await createRLNProof(hash, zkIdentity, merklePath);
-      await this.publish(message, {proof, type: ProofType.rln});
+      await this.publish(message, {proof, type: ProofType.rln, groupId: options.groupId || ''});
     } else {
       throw new Error('no private key or zk identity detected.');
     }
@@ -213,7 +216,7 @@ export class PubsubService extends GenericService {
       const idCommitmentHex = '0x' + identityCommitment.toString(16);
       const merklePath = await this.groups.getMerklePath(idCommitmentHex, options.groupId);
       const proof = await createRLNProof(hash, zkIdentity, merklePath);
-      await this.publish(message, {proof, type: ProofType.rln});
+      await this.publish(message, {proof, type: ProofType.rln, groupId: options.groupId || ''});
     } else {
       throw new Error('no private key or zk identity detected.');
     }

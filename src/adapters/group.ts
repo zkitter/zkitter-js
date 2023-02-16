@@ -7,7 +7,7 @@ export interface GenericGroupAdapter extends EventEmitter2 {
   db: GenericDBAdapterInterface;
   sync: () => Promise<void>;
   tree: () => Promise<IncrementalMerkleTree>;
-  members: () => Promise<any>;
+  members: () => Promise<string[]>;
   verify: () => Promise<boolean>;
 }
 

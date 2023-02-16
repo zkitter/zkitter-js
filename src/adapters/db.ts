@@ -1,5 +1,5 @@
 import {User} from "../models/user";
-import {Connection, Message, Moderation, Post, Profile} from "../utils/message";
+import {AnyMessage, Connection, Message, Moderation, Post, Profile} from "../utils/message";
 import {PostMeta} from "../models/postmeta";
 import {UserMeta} from "../models/usermeta";
 import {Proof} from "../models/proof";
@@ -23,7 +23,7 @@ export interface GenericDBAdapterInterface {
   insertModeration: (moderation: Moderation, proof: Proof) => Promise<Moderation|null>;
   insertConnection: (connection: Connection, proof: Proof) => Promise<Connection|null>;
   insertProfile: (profile: Profile, proof: Proof) => Promise<Profile|null>;
-  getMessagesByUser: (address: string, limit?: number, offset?: number|string) => Promise<Message[]>;
+  getMessagesByUser: (address: string, limit?: number, offset?: number|string) => Promise<AnyMessage[]>;
   getPostMeta: (postHash: string) => Promise<PostMeta>;
   getPost: (hash: string) => Promise<Post|null>;
   getPosts: (limit?: number, offset?: number|string) => Promise<Post[]>;

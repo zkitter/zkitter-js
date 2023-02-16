@@ -14,6 +14,7 @@ export type SignatureProof = {
 export type RLNProof = {
   type: ProofType.rln;
   proof: RLNFullProof;
+  groupId: string;
 }
 
 export type NullProof = {
