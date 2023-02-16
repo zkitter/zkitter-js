@@ -668,6 +668,13 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       });
       operations.push({
         type: 'put',
+        sublevel: this.userPostsDB(post.creator),
+        key: bytewise.encode(post.createdAt),
+        // @ts-ignore
+        value: json.hash,
+      });
+      operations.push({
+        type: 'put',
         sublevel: this.repostDB(hash),
         key: encodedKey,
         // @ts-ignore
@@ -721,6 +728,64 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         creator,
         createdAt: new Date(json.createdAt),
       }));
+    }
+
+    return posts;
+  }
+
+  async getHomefeed(
+    filter: {
+      addresses: { [address: string]: true };
+      groups: { [groupId: string]: true };
+    },
+    limit = -1,
+    offset?: number|string
+  ): Promise<Post[]> {
+    const options: any = { valueEncoding: 'json', reverse: true };
+
+    if (typeof offset === 'string') {
+      const offsetPost = await this.messageDB<PostJSON>().get(offset).catch(() => null);
+      if (offsetPost) {
+        const { messageId, ...json } = offsetPost;
+        const {creator} = parseMessageId(messageId);
+        const encodedKey = this.encodeMessageSortKey(new Post({
+          ...json,
+          creator,
+          createdAt: new Date(json.createdAt),
+        }));
+        options.lt = encodedKey;
+      }
+    }
+
+    const posts: Post[] = [];
+
+    for await (const value of this.postlistDB.values(options)) {
+      const post = await this.messageDB<PostJSON>().get(value);
+      const { messageId, hash, ...json } = post;
+      const {creator} = parseMessageId(messageId);
+
+      if (creator && !filter.addresses[creator]) {
+        continue;
+      }
+
+      const meta = await this.getPostMeta(hash);
+      const groupId = meta?.groupId;
+
+      if (!creator && !filter.groups[groupId]) {
+        continue;
+      }
+
+      posts.push(new Post({
+        ...json,
+        creator,
+        createdAt: new Date(json.createdAt),
+      }));
+
+      if (limit > -1) {
+        if (posts.length >= limit) {
+          return posts;
+        }
+      }
     }
 
     return posts;

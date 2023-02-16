@@ -340,6 +340,17 @@ export class Zkitter extends GenericService {
     return this.services.posts.getPosts(limit, offset);
   }
 
+  async getHomefeed(
+    filter: {
+      addresses: { [address: string]: true };
+      groups: { [groupId: string]: true };
+    },
+    limit = -1,
+    offset?: number|string
+  ): Promise<Post[]> {
+    return this.services.posts.getHomefeed(filter, limit, offset);
+  }
+
   async getUserPosts(address: string, limit?: number, offset?: string|number): Promise<Post[]> {
     return this.services.posts.getUserPosts(address, limit, offset);
   }

@@ -31,6 +31,17 @@ export class PostService extends GenericService {
     return this.db.getPosts(limit, offset);
   }
 
+  async getHomefeed(
+    filter: {
+      addresses: { [address: string]: true };
+      groups: { [groupId: string]: true };
+    },
+    limit = -1,
+    offset?: number|string
+  ): Promise<Post[]> {
+    return this.db.getHomefeed(filter, limit, offset);
+  }
+
   async getUserPosts(address: string, limit?: number, offset?: number|string) {
     return this.db.getUserPosts(address, limit, offset);
   }

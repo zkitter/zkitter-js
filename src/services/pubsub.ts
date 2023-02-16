@@ -129,7 +129,7 @@ export class PubsubService extends GenericService {
     const { hash, address, privateKey, zkIdentity, groupId } = opts;
     let identity = zkIdentity;
 
-    if (!address && privateKey) {
+    if (!address && privateKey && (!groupId || groupId === 'zksocial_all')) {
       const zkseed = await signWithP256(privateKey, 'signing for zk identity - 0');
       const zkHex = await sha256(zkseed);
       identity = new ZkIdentity(Strategy.MESSAGE, zkHex);
