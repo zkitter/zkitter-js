@@ -139,7 +139,7 @@ export class UserService extends GenericService {
     const lastBlock = startingBlock || await this.db.getLastArbitrumBlockScanned();
     const block = await this.getBlock('latest');
 
-    const toBlock = Math.min(block.number, lastBlock + 99999);
+    const toBlock = Math.min(block.number, lastBlock + 999999);
 
     const events = await this.registrar.getPastEvents('RecordUpdatedFor', {
       fromBlock: lastBlock,

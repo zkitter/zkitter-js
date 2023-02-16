@@ -20,7 +20,8 @@
         return signature;
     });
     // console.log(await zkitter.getGroupMembers('semaphore_taz_members'))
-    console.log(account, web3, keys);
+    console.log(account);
+    console.log(await zkitter.getUserPosts(account));
     // await zkitter.write({
     //     creator: account,
     //     content: 'hello zkitter',
