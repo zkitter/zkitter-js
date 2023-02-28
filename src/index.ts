@@ -1,7 +1,10 @@
+export {createRLNProof} from "./utils/zk";
+
 export {generateIdentity} from "./utils/identity";
 
 export {Zkitter} from "./services";
 export {LevelDBAdapter} from "./adapters/leveldb";
+export type {GenericGroupAdapter} from "./adapters/group";
 export type {GenericDBAdapterInterface} from "./adapters/db";
 
 export {

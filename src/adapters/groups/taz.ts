@@ -1,7 +1,7 @@
 import { generateMerkleTree } from '@zk-kit/protocols';
+import {IncrementalMerkleTree} from "@zk-kit/incremental-merkle-tree";
 import {GenericGroupAdapter, GroupEvents} from "../group";
 import {GenericDBAdapterInterface} from "../db";
-import {IncrementalMerkleTree} from "@zk-kit/incremental-merkle-tree";
 import EventEmitter2, {ConstructorOptions} from "eventemitter2";
 
 export class TazGroup extends EventEmitter2 implements GenericGroupAdapter {

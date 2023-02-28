@@ -157,45 +157,6 @@ export class Zkitter extends GenericService {
     return this.services.users.status();
   }
 
-  async user(address: string) {
-    const user = await this.services.users.getUser(address);
-
-    if (!user) {
-      return null;
-    }
-
-    return {
-      ...user,
-      subscribe: () => {
-        return this.services.pubsub.subscribeUser(address, async (msg, proof) => {
-          if (msg) {
-            await this.insert(msg, proof);
-          }
-        });
-      }
-    };
-  }
-
-
-  async thread(hash: string) {
-    const post = await this.services.posts.getPost(hash);
-
-    if (!post) {
-      return null;
-    }
-
-    return {
-      ...post,
-      subscribe: () => {
-        return this.services.pubsub.subscribeThread(hash, async (msg, proof) => {
-          if (msg) {
-            await this.insert(msg, proof);
-          }
-        });
-      }
-    };
-  }
-
   private appendNewSubscription(options?: {
     groups?: string[];
     users?: string[];

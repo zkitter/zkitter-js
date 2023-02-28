@@ -2,8 +2,6 @@ import {GenericService} from "../utils/svc";
 import {GenericDBAdapterInterface} from "../adapters/db";
 import {ConstructorOptions} from "eventemitter2";
 import {GenericGroupAdapter, GroupEvents} from "../adapters/group";
-import {ConnectionMessageSubType, MessageType} from "../utils/message";
-import {hexify, toBigInt} from "../utils/encoding";
 import {generateMerkleTree} from "@zk-kit/protocols";
 
 const DEFAULT_WATCH_INTERVAL = 1000 * 60 * 15;

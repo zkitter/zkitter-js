@@ -373,6 +373,8 @@ export class PubsubService extends GenericService {
       ? [createDecoder(globalMessageTopic(this.topicPrefix))]
       : topics.map(createDecoder);
 
+    if (!decoders.length) return;
+
     for await (const messagesPromises of this.waku.store.queryGenerator(decoders)) {
       const wakuMessages = await Promise.all(messagesPromises);
 
@@ -427,29 +429,6 @@ export class PubsubService extends GenericService {
   async subscribeThread(hash: string, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
     const decoder = createDecoder(threadTopic(hash, this.topicPrefix));
     return this.waku.filter.subscribe([decoder], async wakuMessage => {
-      const decoded = Message.decode(wakuMessage.payload!);
-      const msg = ZkitterMessage.fromHex(decoded.data);
-      const proof: Proof = JSON.parse(decoded.proof);
-      if (msg && await this.validateMessage(msg, proof)) {
-        await cb(msg, proof);
-      }
-    });
-  }
-
-  async subscribeGroup(groupId: string, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
-    const decoder = createDecoder(groupMessageTopic(groupId, this.topicPrefix));
-    return this.waku.filter.subscribe([decoder], async wakuMessage => {
-      const decoded = Message.decode(wakuMessage.payload!);
-      const msg = ZkitterMessage.fromHex(decoded.data);
-      const proof: Proof = JSON.parse(decoded.proof);
-      if (msg && await this.validateMessage(msg, proof)) {
-        await cb(msg, proof);
-      }
-    });
-  }
-
-  async subscribeThreads(hashes: string[], cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
-    return this.waku.filter.subscribe(hashes.map(hash => createDecoder(threadTopic(hash, this.topicPrefix))), async wakuMessage => {
       const decoded = Message.decode(wakuMessage.payload!);
       const msg = ZkitterMessage.fromHex(decoded.data);
       const proof: Proof = JSON.parse(decoded.proof);
