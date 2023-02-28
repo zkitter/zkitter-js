@@ -368,6 +368,7 @@ export class Zkitter extends GenericService {
   }
 
   async queryUser(address: string) {
+    await this.queryHistory(address);
     return this.services.pubsub.queryUser(address, async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
