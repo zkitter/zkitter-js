@@ -42,7 +42,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   db: Level;
 
   static async initialize(path?: string) {
-    const db = new Level(path || './db', { valueEncoding: 'json' });
+    const db = new Level(path || './zkitterdb', { valueEncoding: 'json' });
     await db.open();
     return new LevelDBAdapter(db);
   }

@@ -393,11 +393,10 @@ export class Zkitter extends GenericService {
 
   async queryHistory(user?: string): Promise<void> {
     const downloaded = await this.db.getHistoryDownloaded(user);
-
     if (downloaded) return;
 
     const query = typeof user === "string"
-      ? user ? '?user=' + 'user' : '?global=true' : '';
+      ? user ? '?user=' + user : '?global=true' : '';
 
     const resp = await fetch(this.historyAPI + query);
     const json = await resp.json();
