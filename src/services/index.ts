@@ -51,7 +51,7 @@ export class Zkitter extends GenericService {
     groups: GroupService;
   };
 
-  private subscriptions: {
+  readonly subscriptions: {
     groups: { [groupId: string]: string };
     users: { [address: string]: string };
     threads: { [hash: string]: string };

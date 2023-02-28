@@ -258,8 +258,17 @@ export class PubsubService extends GenericService {
 
       if (message.type === MessageType.Post) {
         const post = message as Post;
-        if (post.payload.reference) {
-          const {hash} = parseMessageId(post.payload.reference);
+        const hash = post.payload.reference
+          ? parseMessageId(post.payload.reference).hash
+          : post.hash();
+        await this.waku.lightPush.push(createEncoder(threadTopic(hash, this.topicPrefix)), {
+          timestamp: message.createdAt,
+          payload,
+        });
+      } else if (message.type === MessageType.Moderation) {
+        const mod = message as Moderation;
+        if (mod.payload.reference) {
+          const {hash} = parseMessageId(mod.payload.reference);
           await this.waku.lightPush.push(createEncoder(threadTopic(hash, this.topicPrefix)), {
             timestamp: message.createdAt,
             payload,
