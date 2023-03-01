@@ -353,6 +353,9 @@ export class Zkitter extends GenericService {
           break;
       }
     } catch (e) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error(e);
+      }
       if (e === AlreadyExistError) {
         this.emit(ZkitterEvents.AlreadyExist, msg);
       }

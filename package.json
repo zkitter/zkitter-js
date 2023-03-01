@@ -4,7 +4,7 @@
   "description": "Implementation of Zkitter using Waku and LevelDB",
   "main": "dist/index.js",
   "scripts": {
-    "dev-ui": "NODE_ENV=development webpack-dev-server --config webpack.web.js --hot",
+    "dev-ui": "NODE_ENV=development npx webpack-dev-server --config webpack.web.js --hot",
     "build-ui": "NODE_ENV=development webpack --config webpack.web.js",
     "dev-server": "nodemon ./build/test.js",
     "watch-server": "webpack --config webpack.config.js --watch",
@@ -42,8 +42,8 @@
     "@zk-kit/incremental-merkle-tree": "^0.4.3",
     "@zk-kit/protocols": "^1.11.1",
     "async-mutex": "^0.3.1",
-    "bytewise": "^1.1.0",
     "chalk": "^4.1.2",
+    "charwise": "^3.0.1",
     "commander": "^10.0.0",
     "elliptic": "^6.5.4",
     "eventemitter2": "^6.4.9",
@@ -59,12 +59,10 @@
     "readline": "^1.3.0",
     "snarkjs": "^0.5.0",
     "web3": "^1.3.5",
-    "webpack-dev-server": "^4.11.1",
     "winston": "^3.3.3"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@types/bytewise": "^1.1.0",
     "@types/elliptic": "^6.4.14",
     "@types/node": "^14.14.37",
     "@types/promptly": "^3.0.2",
@@ -105,11 +103,12 @@
     "uglifyjs-webpack-plugin": "^2.2.0",
     "url": "^0.11.0",
     "webpack": "^5.75.0",
-    "webpack-cli": "^5.0.0",
+    "webpack-cli": "^5.0.1",
+    "webpack-dev-server": "^4.11.1",
     "webpack-node-externals": "^3.0.0"
   },
   "engines": {
-    "node": ">=16 <17"
+    "node": ">=16 <=18"
   },
   "esModuleInterop": true
 }

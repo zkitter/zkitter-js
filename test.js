@@ -11,6 +11,9 @@
     await zkitter.watchArbitrum();
     console.log('watch');
     await zkitter.subscribe({});
+    // await zkitter.queryHistory();
+    await zkitter.queryUser('0xFEBc214765f6201d15F06e4bb882a7400B0FDf63');
+    console.log(await zkitter.getFollowings('0xFEBc214765f6201d15F06e4bb882a7400B0FDf63'));
 
     console.log('hihihihih')
     const httpProvider = new Web3.providers.HttpProvider('https://arb1.arbitrum.io/rpc');
@@ -23,6 +26,10 @@
             content: 'hello anon',
         },
     });
+
+    const posts = await zkitter.getUserPosts('0xFEBc214765f6201d15F06e4bb882a7400B0FDf63', 20);
+    const last = posts[posts.length - 1];
+    // console.log(posts, last.hash());
 
     console.log((await zkitter.getHomefeed({
         addresses: {
@@ -38,7 +45,7 @@
             "zksocial_all": true,
             '': true,
         }
-    }, 2)).map(p => p.toJSON()))
+    })).map(p => p.toJSON()))
 
     // const proof = await zkitter.services.pubsub.createProof({
     //     hash: post.hash(),
@@ -56,6 +63,8 @@
     //     const {signature} = await sign.sign(data);
     //     return signature;
     // });
+    console.log(await zkitter.getUser('0xFEBc214765f6201d15F06e4bb882a7400B0FDf63'))
+    console.log(await zkitter.getUserMeta('0xFEBc214765f6201d15F06e4bb882a7400B0FDf63'))
     console.log(await zkitter.getGroupMembers('custom_0x9F081501b14be09271F8A7Eed550e98643b5C5c4'))
     // console.log(account);
     // console.log(proof);
