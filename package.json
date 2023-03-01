@@ -17,7 +17,8 @@
     "build-cli": "webpack --config webpack.bin.js",
     "dev": "NODE_ENV=development concurrently --kill-others-on-fail npm:watch-cli npm:watch-lib npm:watch-weblib npm:dev-ui",
     "build": "NODE_ENV=production concurrently --kill-others-on-fail npm:build-cli npm:build-lib npm:build-weblib",
-    "start": "NODE_ENV=production npm run build && node ./build/server.js"
+    "start": "NODE_ENV=production npm run build && node ./build/server.js",
+    "depcheck": "depcheck . --config=depcheckrc.json"
   },
   "author": "0xtsukino",
   "license": "ISC",
@@ -78,6 +79,7 @@
     "concurrently": "^6.2.0",
     "constants-browserify": "^1.0.0",
     "copy-webpack-plugin": "^11.0.0",
+    "depcheck": "^1.4.3",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-import-resolver-typescript": "^3.5.2",
