@@ -1,13 +1,26 @@
 export { createRLNProof } from './utils/zk';
 
-export { generateIdentity } from './utils/identity';
+export {
+  generateIdentity,
+  generateECDHWithP256,
+  generateZKIdentityWithP256,
+  generateECDHKeyPairFromhex,
+  generateZkIdentityFromHex,
+} from "./utils/identity";
 
 export { Zkitter } from './services';
 export { LevelDBAdapter } from './adapters/leveldb';
 export type { GenericGroupAdapter } from './adapters/group';
 export type { GenericDBAdapterInterface } from './adapters/db';
 
-export { Post, Moderation, Profile, Connection, Message } from './utils/message';
+export {
+  Post,
+  Moderation,
+  Profile,
+  Connection,
+  Chat,
+  Message,
+} from "./utils/message";
 
 export type {
   PostMessageSubType,
@@ -18,6 +31,8 @@ export type {
   ProfileJSON,
   ConnectionMessageSubType,
   ConnectionJSON,
+  ChatMessageSubType,
+  ChatJSON,
   MessageType,
 } from './utils/message';
 

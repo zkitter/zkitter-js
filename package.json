@@ -50,6 +50,7 @@
     "chalk": "^4.1.2",
     "charwise": "^3.0.1",
     "commander": "^10.0.0",
+    "crypto-js": "^4.1.1",
     "elliptic": "^6.5.4",
     "eventemitter2": "^6.4.9",
     "isomorphic-fetch": "^3.0.0",
@@ -73,6 +74,7 @@
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
+    "@types/crypto-js": "^4.1.1",
     "@types/elliptic": "^6.4.14",
     "@types/node": "^14.14.37",
     "@types/promptly": "^3.0.2",

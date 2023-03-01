@@ -6,6 +6,7 @@ export enum MessageType {
   Moderation = 'MODERATION',
   Profile = 'PROFILE',
   Connection = 'CONNECTION',
+  Chat = 'CHAT',
   File = 'FILE',
 }
 
@@ -15,7 +16,7 @@ export type MessageOption = {
   createdAt?: Date;
 };
 
-export type AnyMessage = Post | Moderation | Connection | Profile;
+export type AnyMessage = Post | Moderation | Connection | Profile | Chat;
 
 export class Message {
   type: MessageType;
@@ -35,6 +36,8 @@ export class Message {
         return MessageType.Profile;
       case 'MODERATION':
         return MessageType.Moderation;
+      case 'CHAT':
+        return MessageType.Chat;
       default:
         return null;
     }
@@ -623,4 +626,123 @@ export function parseMessageId(id: string) {
     creator,
     hash,
   };
+}
+
+
+export enum ChatMessageSubType {
+  Default = '',
+  Direct = 'DIRECT',
+}
+
+export type ChatMessagePayload = {
+  encryptedContent: string;
+  reference: string;
+  senderECDH: string;
+  receiverECDH: string;
+};
+
+export type ChatJSON = {
+  type: MessageType;
+  messageId: string;
+  hash: string;
+  createdAt: number;
+  subtype: ChatMessageSubType;
+  payload: ChatMessagePayload;
+  meta?: any;
+};
+
+export type ChatMessageOption = {
+  subtype: ChatMessageSubType;
+  payload: {
+    encryptedContent: string;
+    reference?: string;
+    senderECDH: string;
+    receiverECDH: string;
+  };
+  hash?: string;
+} & MessageOption;
+
+export class Chat extends Message {
+  subtype: ChatMessageSubType;
+
+  payload: ChatMessagePayload;
+
+  static fromHex(hex: string) {
+    let d = hex;
+
+    const [type] = decodeString(d, 2, cb);
+    const [subtype] = decodeString(d, 2, cb);
+    const [creator] = decodeString(d, 3, cb);
+    const [createdAt] = decodeNumber(d, 12, cb);
+    const [encryptedContent] = decodeString(d, 6, cb);
+    const [reference] = decodeString(d, 3, cb);
+    const [senderECDH] = decodeString(d, 3, cb);
+    const [receiverECDH] = decodeString(d, 3, cb);
+
+    return new Chat({
+      type: type as MessageType.Chat,
+      subtype: subtype as ChatMessageSubType,
+      creator,
+      createdAt: new Date(createdAt),
+      payload: {
+        encryptedContent,
+        reference,
+        senderECDH,
+        receiverECDH,
+      },
+    });
+
+    function cb(n: number) {
+      d = d.slice(n);
+    }
+  }
+
+  static getSubtype(subtype: string): ChatMessageSubType {
+    switch (subtype) {
+      case 'DIRECT':
+        return ChatMessageSubType.Direct;
+      default:
+        return ChatMessageSubType.Default
+    }
+  }
+
+  constructor(opt: ChatMessageOption) {
+    super(opt);
+    this.type = MessageType.Chat;
+    this.subtype = Chat.getSubtype(opt.subtype);
+    this.payload = {
+      encryptedContent: opt.payload.encryptedContent || '',
+      reference: opt.payload.reference || '',
+      senderECDH: opt.payload.senderECDH || '',
+      receiverECDH: opt.payload.receiverECDH || '',
+    };
+  }
+
+  hash() {
+    return crypto.createHash('sha256').update(this.toHex()).digest('hex');
+  }
+
+  toJSON(): ChatJSON {
+    const hash = this.hash();
+    return {
+      messageId: this.creator ? `${this.creator}/${hash}` : hash,
+      hash: hash,
+      type: this.type,
+      subtype: this.subtype,
+      createdAt: this.createdAt.getTime(),
+      payload: this.payload,
+    };
+  }
+
+  toHex() {
+    const type = encodeString(this.type, 2);
+    const subtype = encodeString(this.subtype, 2);
+    const creator = encodeString(this.creator, 3);
+    const createdAt = encodeNumber(this.createdAt.getTime(), 12);
+    const encryptedContent = encodeString(this.payload.encryptedContent, 6);
+    const reference = encodeString(this.payload.reference, 3);
+    const senderECDH = encodeString(this.payload.senderECDH, 3);
+    const receiverECDH = encodeString(this.payload.receiverECDH, 3);
+    return type + subtype + creator + createdAt + encryptedContent + reference + senderECDH + receiverECDH;
+  }
 }

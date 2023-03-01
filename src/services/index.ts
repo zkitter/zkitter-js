@@ -511,4 +511,14 @@ export class Zkitter extends GenericService {
   }) {
     return this.services.pubsub.write(options);
   }
+
+  async createProof(opts: {
+    hash: string;
+    address?: string;
+    privateKey?: string;
+    zkIdentity?: ZkIdentity,
+    groupId?: string;
+  }): Promise<Proof> {
+    return this.services.pubsub.createProof(opts);
+  }
 }
