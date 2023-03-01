@@ -17,13 +17,13 @@ import {
   PostMessageSubType,
   Profile,
   ProfileJSON,
-  ProfileMessageSubType,
-} from '../utils/message';
-import bytewise from 'bytewise';
-import { EmptyPostMeta, PostMeta } from '../models/postmeta';
-import { EmptyUserMeta, UserMeta, UserMetaKey } from '../models/usermeta';
-import { Proof, ProofType } from '../models/proof';
-import { GroupMember } from '../models/group';
+  ProfileMessageSubType
+} from "../utils/message";
+const charwise = require("charwise");
+import {EmptyPostMeta, PostMeta} from "../models/postmeta";
+import {EmptyUserMeta, UserMeta, UserMetaKey} from "../models/usermeta";
+import {Proof, ProofType} from "../models/proof";
+import {GroupMember} from "../models/group";
 
 const keys = {
   APP: {
@@ -156,9 +156,9 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   private encodeMessageSortKey(message: Message): string {
-    return (
-      bytewise.encode(message.createdAt) + '_' + bytewise.encode(message.creator).toString('hex')
-    );
+    return charwise.encode(message.createdAt.getTime())
+    + '_'
+    + charwise.encode(message.creator).toString('hex');
   }
 
   async getUserCount(): Promise<number> {
@@ -342,7 +342,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       {
         type: 'put',
         sublevel: this.groupMemberlistDB(groupId),
-        key: bytewise.encode(member.index).toString('hex'),
+        key: charwise.encode(member.index).toString('hex'),
         // @ts-ignore
         value: member.idCommitment,
       },
@@ -387,7 +387,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       {
         type: 'put',
         sublevel: this.userMessageDB(profile.creator),
-        key: bytewise.encode(profile.createdAt),
+        key: charwise.encode(profile.createdAt.getTime()),
         // @ts-ignore
         value: json.hash,
       },
@@ -483,7 +483,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       {
         type: 'put',
         sublevel: this.userMessageDB(conn.creator),
-        key: bytewise.encode(conn.createdAt),
+        key: charwise.encode(conn.createdAt.getTime()),
         // @ts-ignore
         value: json.hash,
       },
@@ -570,7 +570,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       {
         type: 'put',
         sublevel: this.userMessageDB(mod.creator),
-        key: bytewise.encode(mod.createdAt),
+        key: charwise.encode(mod.createdAt.getTime()),
         // @ts-ignore
         value: json.hash,
       },
@@ -649,7 +649,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       {
         type: 'put',
         sublevel: this.userMessageDB(post.creator),
-        key: bytewise.encode(post.createdAt),
+        key: charwise.encode(post.createdAt.getTime()),
         // @ts-ignore
         value: json.hash,
       },
@@ -682,7 +682,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       operations.push({
         type: 'put',
         sublevel: this.userPostsDB(post.creator),
-        key: bytewise.encode(post.createdAt),
+        key: charwise.encode(post.createdAt.getTime()),
         // @ts-ignore
         value: json.hash,
       });
@@ -726,7 +726,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       operations.push({
         type: 'put',
         sublevel: this.userPostsDB(post.creator),
-        key: bytewise.encode(post.createdAt),
+        key: charwise.encode(post.createdAt.getTime()),
         // @ts-ignore
         value: json.hash,
       });
@@ -870,7 +870,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         .get(offset)
         .catch(() => null);
       if (offsetPost) {
-        options.lt = bytewise.encode(new Date(offsetPost.createdAt));
+        options.lt = charwise.encode(offsetPost.createdAt);
       }
     }
 
@@ -903,7 +903,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         .get(offset)
         .catch(() => null);
       if (offsetPost) {
-        options.lt = bytewise.encode(new Date(offsetPost.createdAt));
+        options.lt = charwise.encode(offsetPost.createdAt);
       }
     }
 
@@ -1108,7 +1108,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         .get(offset)
         .catch(() => null);
       if (offsetMsg) {
-        options.gt = bytewise.encode(new Date(offsetMsg.createdAt));
+        options.gt = charwise.encode(offsetMsg.createdAt);
       }
     }
 
@@ -1176,7 +1176,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         .get(offset)
         .catch(() => null);
       if (offsetMember) {
-        const sortKey = bytewise.encode(offsetMember.index).toString('hex');
+        const sortKey = charwise.encode(offsetMember.index).toString('hex');
         options.gt = sortKey;
       }
     }
