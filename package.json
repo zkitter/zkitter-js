@@ -1,6 +1,6 @@
 {
   "name": "zkitter-js",
-  "version": "1.1.8",
+  "version": "1.1.11",
   "description": "Implementation of Zkitter using Waku and LevelDB",
   "main": "dist/index.js",
   "scripts": {
@@ -37,11 +37,11 @@
   "dependencies": {
     "@nodeutils/defaults-deep": "^1.1.0",
     "@waku/byte-utils": "^0.0.2",
-    "@waku/core": "^0.0.7",
-    "@waku/create": "^0.0.5",
+    "@waku/core": "^0.0.10",
+    "@waku/create": "^0.0.6",
     "@waku/interfaces": "^0.0.7",
-    "@waku/libp2p-utils": "^0.0.2",
-    "@waku/peer-exchange": "^0.0.1",
+    "@waku/libp2p-utils": "^0.0.3",
+    "@waku/peer-exchange": "^0.0.3",
     "@waku/proto": "^0.0.2",
     "@zk-kit/identity": "^1.4.1",
     "@zk-kit/incremental-merkle-tree": "^0.4.3",
@@ -126,11 +126,7 @@
     "webpack-node-externals": "^3.0.0"
   },
   "engines": {
-<<<<<<< HEAD
     "node": "16.x - 18.x"
-=======
-    "node": ">=16 <=18"
->>>>>>> ab20c8d (replace bytewise with charwise)
   },
   "esModuleInterop": true
 }

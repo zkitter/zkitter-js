@@ -32,48 +32,43 @@ const rules = [
 ];
 
 module.exports = [
-  {
-    mode: isProd ? 'production' : 'development',
-    entry: {
-      index: path.join(__dirname, 'src', 'index.ts'),
+    {
+        mode: isProd ? 'production' : 'development',
+        entry: {
+            'index': path.join(__dirname, 'src', 'index.ts'),
+        },
+        target: 'node',
+        devtool: 'source-map',
+        resolve: {
+            extensions: ['.ts', '.js', '.png', '.svg', '.wasm'],
+        },
+        node: {
+            __dirname: true,
+        },
+        module: {
+            rules: [...rules],
+        },
+        output: {
+            path: __dirname + '/dist',
+            filename: `[name].js`,
+            libraryTarget: 'umd',
+            globalObject: 'this',
+            umdNamedDefine: true,
+            library: {
+                name: "zkitter-js",
+                type: "umd"
+            },
+        },
+        // optimization: {
+        //     minimize: isProd,
+        //     minimizer: [new UglifyJsPlugin({
+        //         // minimize: true,
+        //         sourceMap: true,
+        //         include: /\.min\.js$/,
+        //     })]
+        // },
+        plugins: [
+            envPlugin,
+        ],
     },
-    target: 'node',
-    devtool: 'source-map',
-    // externals: [nodeExternals()],
-    // experiments: {
-    //     asyncWebAssembly: false,
-    //     // lazyCompilation: true,
-    //     syncWebAssembly: true,
-    //     topLevelAwait: true,
-    // },
-    resolve: {
-      extensions: ['.ts', '.js', '.png', '.svg', '.wasm'],
-    },
-    node: {
-      __dirname: true,
-    },
-    module: {
-      rules: [...rules],
-    },
-    output: {
-      path: __dirname + '/dist',
-      filename: `[name].js`,
-      libraryTarget: 'umd',
-      globalObject: 'this',
-      umdNamedDefine: true,
-      library: {
-        name: 'zkitter-js',
-        type: 'umd',
-      },
-    },
-    // optimization: {
-    //     minimize: isProd,
-    //     minimizer: [new UglifyJsPlugin({
-    //         // minimize: true,
-    //         sourceMap: true,
-    //         include: /\.min\.js$/,
-    //     })]
-    // },
-    plugins: [envPlugin],
-  },
 ];
