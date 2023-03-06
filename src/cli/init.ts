@@ -1,13 +1,16 @@
-import {Command} from "commander";
-import {LevelDBAdapter} from "../adapters/leveldb";
-import {error, success, warning} from "../utils/logger";
+import { Command } from 'commander';
+import { LevelDBAdapter } from '../adapters/leveldb';
+import { error, success } from '../utils/logger';
 
 export function init(program: Command) {
   program
     .command('init')
     .description('initialize zkitter')
-    .option('-a, --arbitrumHttpProvider <arbitrumHttpProvider>', 'http provider url for arbitrum mainnet')
-    .action(async (options) => {
+    .option(
+      '-a, --arbitrumHttpProvider <arbitrumHttpProvider>',
+      'http provider url for arbitrum mainnet'
+    )
+    .action(async options => {
       const db = await LevelDBAdapter.initialize();
       const arbitrumHttpProvider = await db.getArbitrumProvider();
 

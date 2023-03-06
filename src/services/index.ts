@@ -1,26 +1,34 @@
-import {GenericService} from "../utils/svc";
+import { ZkIdentity } from '@zk-kit/identity';
+import { ConstructorOptions } from 'eventemitter2';
 import Web3 from 'web3';
-import {Contract} from 'web3-eth-contract';
-import {AlreadyExistError, LevelDBAdapter} from "../adapters/leveldb";
-import {UserService} from "./users";
-import {User} from "../models/user";
-import {PubsubService} from "./pubsub";
-import {PostService} from "./posts";
-import {Connection, Message, MessageType, Moderation, parseMessageId, Post, Profile} from "../utils/message";
-import {ModerationService} from "./moderations";
-import {ConnectionService} from "./connections";
-import {UserMeta} from "../models/usermeta";
-import {ProfileService} from "./profile";
-import {GenericDBAdapterInterface} from "../adapters/db";
-import {PostMeta} from "../models/postmeta";
-import {ConstructorOptions} from "eventemitter2";
-import {Proof} from "../models/proof";
-import {GroupService} from "./groups";
-import {GenericGroupAdapter} from "../adapters/group";
-import {TazGroup} from "../adapters/groups/taz";
-import {ZkIdentity} from "@zk-kit/identity";
-import {InterepGroup} from "../adapters/groups/interep";
-import {GlobalGroup} from "../adapters/groups/global";
+import { Contract } from 'web3-eth-contract';
+import { GenericDBAdapterInterface } from '../adapters/db';
+import { GenericGroupAdapter } from '../adapters/group';
+import { GlobalGroup } from '../adapters/groups/global';
+import { InterepGroup } from '../adapters/groups/interep';
+import { TazGroup } from '../adapters/groups/taz';
+import { AlreadyExistError, LevelDBAdapter } from '../adapters/leveldb';
+import { PostMeta } from '../models/postmeta';
+import { Proof } from '../models/proof';
+import { User } from '../models/user';
+import { UserMeta } from '../models/usermeta';
+import {
+  Connection,
+  Message,
+  MessageType,
+  Moderation,
+  parseMessageId,
+  Post,
+  Profile,
+} from '../utils/message';
+import { GenericService } from '../utils/svc';
+import { ConnectionService } from './connections';
+import { GroupService } from './groups';
+import { ModerationService } from './moderations';
+import { PostService } from './posts';
+import { ProfileService } from './profile';
+import { PubsubService } from './pubsub';
+import { UserService } from './users';
 
 export enum ZkitterEvents {
   ArbitrumSynced = 'Users.ArbitrumSynced',
@@ -58,7 +66,7 @@ export class Zkitter extends GenericService {
     all: boolean;
   };
 
-  private unsubscribe: (() => Promise<void>)|null;
+  private unsubscribe: (() => Promise<void>) | null;
 
   static async initialize(options?: {
     arbitrumProvider?: string;
@@ -68,17 +76,22 @@ export class Zkitter extends GenericService {
     lazy?: boolean;
     topicPrefix?: string;
   }): Promise<Zkitter> {
-    const db = options?.db || await LevelDBAdapter.initialize();
+    const db = options?.db || (await LevelDBAdapter.initialize());
     const users = new UserService({
-      db,
       arbitrumProvider: options?.arbitrumProvider || 'https://arb1.arbitrum.io/rpc',
+      db,
     });
-    const posts = new PostService({db});
-    const moderations = new ModerationService({db});
-    const connections = new ConnectionService({db});
-    const profile = new ProfileService({db});
+    const posts = new PostService({ db });
+    const moderations = new ModerationService({ db });
+    const connections = new ConnectionService({ db });
+    const profile = new ProfileService({ db });
     const groups = new GroupService({ db });
-    const pubsub = await PubsubService.initialize(users, groups, options?.lazy, options?.topicPrefix);
+    const pubsub = await PubsubService.initialize(
+      users,
+      groups,
+      options?.lazy,
+      options?.topicPrefix
+    );
 
     const grouplist = options?.groups || [
       new GlobalGroup({ db }),
@@ -102,48 +115,50 @@ export class Zkitter extends GenericService {
     }
 
     return new Zkitter({
-      db,
-      users,
-      pubsub,
-      posts,
-      moderations,
       connections,
-      profile,
+      db,
       groups,
       historyAPI: options?.historyAPI,
+      moderations,
+      posts,
+      profile,
+      pubsub,
+      users,
     });
   }
 
-  constructor(opts: ConstructorOptions & {
-    db: GenericDBAdapterInterface;
-    users: UserService;
-    pubsub: PubsubService;
-    posts: PostService;
-    moderations: ModerationService;
-    connections: ConnectionService;
-    profile: ProfileService;
-    groups: GroupService;
-    historyAPI?: string;
-  }) {
+  constructor(
+    opts: ConstructorOptions & {
+      db: GenericDBAdapterInterface;
+      users: UserService;
+      pubsub: PubsubService;
+      posts: PostService;
+      moderations: ModerationService;
+      connections: ConnectionService;
+      profile: ProfileService;
+      groups: GroupService;
+      historyAPI?: string;
+    }
+  ) {
     super(opts);
     this.db = opts.db;
     this.unsubscribe = null;
     this.subscriptions = {
       all: false,
-      users: {},
       groups: {},
       threads: {},
+      users: {},
     };
     this.historyAPI = opts.historyAPI || 'https://api.zkitter.com/v1/history';
 
     this.services = {
+      connections: opts.connections,
+      groups: opts.groups,
+      moderations: opts.moderations,
+      posts: opts.posts,
+      profile: opts.profile,
       pubsub: opts.pubsub,
       users: opts.users,
-      posts: opts.posts,
-      moderations: opts.moderations,
-      connections: opts.connections,
-      profile: opts.profile,
-      groups: opts.groups,
     };
 
     for (const service of Object.values(this.services)) {
@@ -157,17 +172,19 @@ export class Zkitter extends GenericService {
     return this.services.users.status();
   }
 
-  private appendNewSubscription(options?: {
-    groups?: string[];
-    users?: string[];
-    threads?: string[];
-  } | null) {
+  private appendNewSubscription(
+    options?: {
+      groups?: string[];
+      users?: string[];
+      threads?: string[];
+    } | null
+  ) {
     this.subscriptions.all = !options;
 
     if (options?.users?.length) {
       this.subscriptions.users = {
         ...this.subscriptions.users,
-        ...options.users.reduce((m: any, a) => {
+        ...options.users.reduce((m: Record<string, string>, a) => {
           m[a] = a;
           return m;
         }, {}),
@@ -177,7 +194,7 @@ export class Zkitter extends GenericService {
     if (options?.groups?.length) {
       this.subscriptions.groups = {
         ...this.subscriptions.groups,
-        ...options.groups.reduce((m: any, a) => {
+        ...options.groups.reduce((m: Record<string, string>, a) => {
           m[a] = a;
           return m;
         }, {}),
@@ -187,7 +204,7 @@ export class Zkitter extends GenericService {
     if (options?.threads?.length) {
       this.subscriptions.threads = {
         ...this.subscriptions.threads,
-        ...options.threads.reduce((m: any, a) => {
+        ...options.threads.reduce((m: Record<string, string>, a) => {
           m[a] = a;
           return m;
         }, {}),
@@ -211,11 +228,13 @@ export class Zkitter extends GenericService {
    * @param options.users string[]     list of user address
    * @param options.threads string[]     list of thread hashes
    */
-  async subscribe(options?: {
-    groups?: string[];
-    users?: string[];
-    threads?: string[];
-  } | null) {
+  async subscribe(
+    options?: {
+      groups?: string[];
+      users?: string[];
+      threads?: string[];
+    } | null
+  ) {
     this.appendNewSubscription(options);
 
     if (options?.users?.length) {
@@ -236,12 +255,14 @@ export class Zkitter extends GenericService {
       await this.unsubscribe();
     }
 
-    const { all, threads, users, groups } = this.subscriptions;
-    const subs = all ? null : {
-      threads: Object.keys(threads),
-      users: Object.keys(users),
-      groups: Object.keys(groups),
-    };
+    const { all, groups, threads, users } = this.subscriptions;
+    const subs = all
+      ? null
+      : {
+          groups: Object.keys(groups),
+          threads: Object.keys(threads),
+          users: Object.keys(users),
+        };
 
     await this.query(subs);
     this.unsubscribe = await this.services.pubsub.subscribe(subs, async (msg, proof) => {
@@ -253,16 +274,18 @@ export class Zkitter extends GenericService {
     return this.unsubscribe;
   }
 
-  async query(options?: {
-    groups?: string[];
-    users?: string[];
-    threads?: string[];
-  } | null) {
+  async query(
+    options?: {
+      groups?: string[];
+      users?: string[];
+      threads?: string[];
+    } | null
+  ) {
     return this.services.pubsub.query(options, async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
       }
-    })
+    });
   }
 
   async syncUsers() {
@@ -285,11 +308,11 @@ export class Zkitter extends GenericService {
     return this.services.groups.getMerklePath(idCommitment, groupId);
   }
 
-  async getUsers(limit?: number, offset?: string|number): Promise<User[]> {
+  async getUsers(limit?: number, offset?: string | number): Promise<User[]> {
     return this.services.users.getUsers(limit, offset);
   }
 
-  async getUser(address: string): Promise<User|null> {
+  async getUser(address: string): Promise<User | null> {
     return this.services.users.getUser(address);
   }
 
@@ -297,7 +320,7 @@ export class Zkitter extends GenericService {
     return this.services.users.getUserMeta(address);
   }
 
-  async getPosts(limit?: number, offset?: string|number): Promise<Post[]> {
+  async getPosts(limit?: number, offset?: string | number): Promise<Post[]> {
     return this.services.posts.getPosts(limit, offset);
   }
 
@@ -311,16 +334,16 @@ export class Zkitter extends GenericService {
       groups: { [groupId: string]: true };
     },
     limit = -1,
-    offset?: number|string
+    offset?: number | string
   ): Promise<Post[]> {
     return this.services.posts.getHomefeed(filter, limit, offset);
   }
 
-  async getUserPosts(address: string, limit?: number, offset?: string|number): Promise<Post[]> {
+  async getUserPosts(address: string, limit?: number, offset?: string | number): Promise<Post[]> {
     return this.services.posts.getUserPosts(address, limit, offset);
   }
 
-  async getThread(hash: string, limit?: number, offset?: string|number): Promise<Post[]> {
+  async getThread(hash: string, limit?: number, offset?: string | number): Promise<Post[]> {
     return this.services.posts.getReplies(hash, limit, offset);
   }
 
@@ -328,7 +351,7 @@ export class Zkitter extends GenericService {
     return this.services.posts.getPostMeta(hash);
   }
 
-  async getMessagesByUser(address: string, limit?: number, offset?: number|string) {
+  async getMessagesByUser(address: string, limit?: number, offset?: number | string) {
     return this.services.users.getMessagesByUser(address, limit, offset);
   }
 
@@ -396,8 +419,7 @@ export class Zkitter extends GenericService {
     const downloaded = await this.db.getHistoryDownloaded(user);
     if (downloaded) return;
 
-    const query = typeof user === "string"
-      ? user ? '?user=' + user : '?global=true' : '';
+    const query = typeof user === 'string' ? (user ? '?user=' + user : '?global=true') : '';
 
     const resp = await fetch(this.historyAPI + query);
     const json = await resp.json();
@@ -408,50 +430,50 @@ export class Zkitter extends GenericService {
       try {
         for (const msg of json.payload) {
           if (!msg) continue;
-          const {creator} = parseMessageId(msg.messageId);
+          const { creator } = parseMessageId(msg.messageId);
           let message: Message | null = null;
 
           switch (msg.type) {
             case MessageType.Post:
               message = new Post({
-                type: msg.type,
-                subtype: msg.subtype,
-                payload: msg.payload,
                 createdAt: new Date(msg.createdAt),
                 creator,
+                payload: msg.payload,
+                subtype: msg.subtype,
+                type: msg.type,
               });
               break;
             case MessageType.Moderation:
               message = new Moderation({
-                type: msg.type,
-                subtype: msg.subtype,
-                payload: msg.payload,
                 createdAt: new Date(msg.createdAt),
                 creator,
+                payload: msg.payload,
+                subtype: msg.subtype,
+                type: msg.type,
               });
               break;
             case MessageType.Connection:
               message = new Connection({
-                type: msg.type,
-                subtype: msg.subtype,
-                payload: msg.payload,
                 createdAt: new Date(msg.createdAt),
                 creator,
+                payload: msg.payload,
+                subtype: msg.subtype,
+                type: msg.type,
               });
               break;
             case MessageType.Profile:
               message = new Profile({
-                type: msg.type,
-                subtype: msg.subtype,
-                payload: msg.payload,
                 createdAt: new Date(msg.createdAt),
                 creator,
+                payload: msg.payload,
+                subtype: msg.subtype,
+                type: msg.type,
               });
               break;
           }
 
           if (message) {
-            await this.insert(message, { type: '', proof: null, group: msg.group });
+            await this.insert(message, { group: msg.group, proof: null, type: '' });
           }
         }
 
@@ -463,7 +485,7 @@ export class Zkitter extends GenericService {
     });
   }
 
-  async getProof(hash: string): Promise<Proof|null> {
+  async getProof(hash: string): Promise<Proof | null> {
     return this.db.getProof(hash);
   }
 
@@ -475,8 +497,8 @@ export class Zkitter extends GenericService {
     creator: string;
     content: string;
     reference?: string;
-    privateKey?: string,
-    zkIdentity?: ZkIdentity,
+    privateKey?: string;
+    zkIdentity?: ZkIdentity;
     global?: boolean;
     groupId?: string;
   }) {

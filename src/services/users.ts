@@ -1,13 +1,13 @@
-import {GenericService} from "../utils/svc";
-import Web3 from "web3";
-import {provider} from "web3-core";
-import {GenericDBAdapterInterface} from "../adapters/db";
-import {arbRegistrarABI} from "../utils/abi";
-import {Contract} from "web3-eth-contract";
-import {User} from "../models/user";
-import {UserMeta} from "../models/usermeta";
-import {ConstructorOptions} from "eventemitter2";
-import mutexify from "../utils/mux";
+import { ConstructorOptions } from 'eventemitter2';
+import Web3 from 'web3';
+import { provider } from 'web3-core';
+import { Contract } from 'web3-eth-contract';
+import { GenericDBAdapterInterface } from '../adapters/db';
+import { User } from '../models/user';
+import { UserMeta } from '../models/usermeta';
+import { arbRegistrarABI } from '../utils/abi';
+import mutexify from '../utils/mux';
+import { GenericService } from '../utils/svc';
 
 export const ARBITRUM_REGISTRAR_ADDRESS = '0x6b0a11F9aA5aa275f16e44e1D479A59dd00abE58';
 
@@ -26,18 +26,18 @@ export class UserService extends GenericService {
 
   db: GenericDBAdapterInterface;
 
-  timeout: any;
+  timeout?: number;
 
   http?: provider;
   ws?: provider;
 
-  getBlock: (block: string|number) => Promise<any>;
+  getBlock: (block: string | number) => Promise<any>;
 
   constructor(
     props: ConstructorOptions & {
-      db: GenericDBAdapterInterface,
-      arbitrumProvider: string,
-    },
+      db: GenericDBAdapterInterface;
+      arbitrumProvider: string;
+    }
   ) {
     super(props);
     const url = new URL(props.arbitrumProvider);
@@ -51,7 +51,7 @@ export class UserService extends GenericService {
     }
 
     this.getBlock = mutexify(this.web3.eth.getBlock);
-    this.registrar = new this.web3.eth.Contract(arbRegistrarABI as any, ARBITRUM_REGISTRAR_ADDRESS);
+    this.registrar = new this.web3.eth.Contract(arbRegistrarABI, ARBITRUM_REGISTRAR_ADDRESS);
     this.db = props.db;
   }
 
@@ -64,37 +64,42 @@ export class UserService extends GenericService {
     const block = await this.getBlock('latest');
 
     return {
-      totalUsers: await this.db.getUserCount(),
       lastBlockScanned: lastBlock,
       latestBlock: block.number,
+      totalUsers: await this.db.getUserCount(),
     };
   }
 
   async subscribeRegistrar(startingBlock?: number): Promise<void> {
-    const lastBlock = startingBlock || await this.db.getLastArbitrumBlockScanned();
+    const lastBlock = startingBlock || (await this.db.getLastArbitrumBlockScanned());
 
-    return new Promise((resolve, reject) => {
-      let timeout: any;
-      this.registrar.events.RecordUpdatedFor({
+    return new Promise(resolve => {
+      let timeout: number;
+      this.registrar.events
+        .RecordUpdatedFor({
           fromBlock: lastBlock,
         })
-        .on('data', mutexify(async(event: any) => {
-          if (timeout) {
-            clearTimeout(timeout);
-          }
-          await this.updateUser(event);
-          await this.db.updateLastArbitrumBlockScanned(event.blockNumber + 1);
-          timeout = setTimeout(resolve, 5000);
-        }))
+        .on(
+          'data',
+          mutexify(async (event: any) => {
+            if (timeout) {
+              clearTimeout(timeout);
+            }
+            await this.updateUser(event);
+            await this.db.updateLastArbitrumBlockScanned(event.blockNumber + 1);
+            timeout = setTimeout(resolve, 5000);
+          })
+        )
         .on('connected', () => {
           if (timeout) {
             clearTimeout(timeout);
           }
           timeout = setTimeout(resolve, 5000);
         })
-        .on('error', (err: any) => {throw new Error(err)})
+        .on('error', (err: any) => {
+          throw new Error(err);
+        });
     });
-
   }
 
   async updateUser(event: {
@@ -103,7 +108,7 @@ export class UserService extends GenericService {
     blockNumber: number;
     returnValues: {
       [key: string]: string;
-    }
+    };
   }): Promise<void> {
     const block = await this.getBlock(event.blockNumber);
     const pubkeyBytes = event.returnValues.value;
@@ -120,8 +125,8 @@ export class UserService extends GenericService {
 
     const user: User = {
       address: account,
-      pubkey,
       joinedAt: new Date(Number(block.timestamp) * 1000),
+      pubkey,
       tx: event.transactionHash,
       type: 'arbitrum',
     };
@@ -133,10 +138,10 @@ export class UserService extends GenericService {
   async fetchUsersFromArbitrum(startingBlock?: number): Promise<void> {
     if (this.timeout) {
       clearTimeout(this.timeout);
-      this.timeout = null;
+      this.timeout = undefined;
     }
 
-    const lastBlock = startingBlock || await this.db.getLastArbitrumBlockScanned();
+    const lastBlock = startingBlock || (await this.db.getLastArbitrumBlockScanned());
     const block = await this.getBlock('latest');
 
     const toBlock = Math.min(block.number, lastBlock + 999999);
@@ -154,8 +159,8 @@ export class UserService extends GenericService {
 
     this.emit(UserServiceEvents.ArbitrumSynced, {
       fromBlock: lastBlock,
-      toBlock: toBlock,
       latest: block.number,
+      toBlock: toBlock,
     });
 
     if (block.number > toBlock) {
@@ -169,7 +174,7 @@ export class UserService extends GenericService {
     } else if (this.ws) {
       await this.subscribeRegistrar();
     }
-  }
+  };
 
   watchArbitrum = async (interval = DEFAULT_WATCH_INTERVAL) => {
     if (this.http) {
@@ -181,13 +186,13 @@ export class UserService extends GenericService {
     } else if (this.ws) {
       await this.subscribeRegistrar();
     }
-  }
+  };
 
-  async getUsers(limit?: number, offset?: string|number): Promise<User[]> {
+  async getUsers(limit?: number, offset?: string | number): Promise<User[]> {
     return this.db.getUsers(limit, offset);
   }
 
-  async getUser(address: string): Promise<User|null> {
+  async getUser(address: string): Promise<User | null> {
     return this.db.getUser(address);
   }
 
@@ -199,7 +204,7 @@ export class UserService extends GenericService {
     return this.db.getFollowings(address);
   }
 
-  async getMessagesByUser(address: string, limit?: number, offset?: number|string) {
+  async getMessagesByUser(address: string, limit?: number, offset?: number | string) {
     return this.db.getMessagesByUser(address, limit, offset);
   }
 }

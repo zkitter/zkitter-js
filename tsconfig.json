@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "noEmit": true,
     "baseUrl": ".",
     "allowJs": true,
     "skipLibCheck": true,
@@ -13,7 +12,12 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "useUnknownInCatchVariables": false,
-    "strictPropertyInitialization": false
+    "strictPropertyInitialization": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "dist",
+    "preserveSymlinks": true
   },
   "include": ["src", "types"]
 }

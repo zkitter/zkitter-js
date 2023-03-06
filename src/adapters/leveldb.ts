@@ -1,6 +1,12 @@
-import {GenericDBAdapterInterface} from "./db";
-import {BatchOperation, Level} from "level";
-import {User} from "../models/user";
+// Types
+import { AbstractValueIteratorOptions } from 'abstract-level';
+import bytewise from 'bytewise';
+import { BatchOperation, Level } from 'level';
+import { GroupMember } from '../models/group';
+import { EmptyPostMeta, PostMeta } from '../models/postmeta';
+import { Proof, ProofType } from '../models/proof';
+import { User } from '../models/user';
+import { EmptyUserMeta, UserMeta, UserMetaKey } from '../models/usermeta';
 import {
   AnyMessage,
   Connection,
@@ -17,19 +23,16 @@ import {
   PostMessageSubType,
   Profile,
   ProfileJSON,
-  ProfileMessageSubType
-} from "../utils/message";
-import bytewise from "bytewise";
-import {EmptyPostMeta, PostMeta} from "../models/postmeta";
-import {EmptyUserMeta, UserMeta, UserMetaKey} from "../models/usermeta";
-import {Proof, ProofType} from "../models/proof";
-import {GroupMember} from "../models/group";
+  ProfileMessageSubType,
+} from '../utils/message';
+
+import { GenericDBAdapterInterface } from './db';
 
 const keys = {
   APP: {
-    lastArbitrumBlockScanned: 'lastArbitrumBlockScanned',
     arbitrumProvider: 'arbitrumProvider',
     historyDownloaded: 'historyDownloaded',
+    lastArbitrumBlockScanned: 'lastArbitrumBlockScanned',
   },
   META: {
     userCount: 'userCount',
@@ -39,20 +42,20 @@ const keys = {
 export const AlreadyExistError = new Error('already exist');
 
 export class LevelDBAdapter implements GenericDBAdapterInterface {
-  db: Level;
+  db: Level<string, unknown>;
 
   static async initialize(path?: string) {
-    const db = new Level(path || './zkitterdb', { valueEncoding: 'json' });
+    const db = new Level<string, unknown>(path || './zkitterdb', { valueEncoding: 'json' });
     await db.open();
     return new LevelDBAdapter(db);
   }
 
-  constructor(db: Level) {
+  constructor(db: Level<string, unknown>) {
     this.db = db;
   }
 
   get appDB() {
-    return this.db.sublevel<string, number|string|boolean>('app', { valueEncoding: 'json' });
+    return this.db.sublevel<string, number | string | boolean>('app', { valueEncoding: 'json' });
   }
 
   get metaDB() {
@@ -64,17 +67,11 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   get postMetaDB() {
-    return this.db.sublevel<string, PostMeta>(
-      'postmeta',
-      { valueEncoding: 'json' },
-    );
+    return this.db.sublevel<string, PostMeta>('postmeta', { valueEncoding: 'json' });
   }
 
   get userMetaDB() {
-    return this.db.sublevel<string, UserMeta>(
-      'usermeta',
-      { valueEncoding: 'json' },
-    );
+    return this.db.sublevel<string, UserMeta>('usermeta', { valueEncoding: 'json' });
   }
 
   get postlistDB() {
@@ -118,21 +115,21 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   groupMembersDB(groupId: string) {
-    return this.db.sublevel<string, GroupMember>(groupId + '/members', { valueEncoding: 'json'});
+    return this.db.sublevel<string, GroupMember>(groupId + '/members', { valueEncoding: 'json' });
   }
 
   groupMemberlistDB(groupId: string) {
-    return this.db.sublevel<string, string>(groupId + '/memberlist', { valueEncoding: 'json'});
+    return this.db.sublevel<string, string>(groupId + '/memberlist', { valueEncoding: 'json' });
   }
 
   get groupRootsDB() {
-    return this.db.sublevel<string, string>('groupRoots', { valueEncoding: 'json'});
+    return this.db.sublevel<string, string>('groupRoots', { valueEncoding: 'json' });
   }
 
   private encodeMessageSortKey(message: Message): string {
-    return bytewise.encode(message.createdAt)
-    + '_'
-    + bytewise.encode(message.creator).toString('hex');
+    return (
+      bytewise.encode(message.createdAt) + '_' + bytewise.encode(message.creator).toString('hex')
+    );
   }
 
   async getUserCount(): Promise<number> {
@@ -151,7 +148,8 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
   async getHistoryDownloaded(user?: string): Promise<boolean> {
     const mod = typeof user === 'string' ? '/' + user : '';
-    return this.appDB.get(keys.APP.historyDownloaded + mod)
+    return this.appDB
+      .get(keys.APP.historyDownloaded + mod)
       .then(historyDownloaded => !!historyDownloaded)
       .catch(() => false);
   }
@@ -176,11 +174,13 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return 2193241;
   }
 
-  async getProof(hash: string): Promise<Proof|null> {
-    return this.proofDB<Proof>().get(hash).catch(() => null);
+  async getProof(hash: string): Promise<Proof | null> {
+    return this.proofDB<Proof>()
+      .get(hash)
+      .catch(() => null);
   }
 
-  async updateLastArbitrumBlockScanned(block: number): Promise<any> {
+  async updateLastArbitrumBlockScanned(block: number): Promise<void> {
     return this.appDB.put(keys.APP.lastArbitrumBlockScanned, block);
   }
 
@@ -191,20 +191,18 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       const count = await this.metaDB.get(keys.META.userCount).catch(() => 0);
       await this.db.batch([
         {
-          type: 'put',
-          sublevel: this.userDB,
           key: user.address,
-          // @ts-ignore
+          sublevel: this.userDB,
+          type: 'put',
           value: user,
         },
         {
-          type: 'put',
-          sublevel: this.metaDB,
           key: keys.META.userCount,
-          // @ts-ignore
+          sublevel: this.metaDB,
+          type: 'put',
           value: count + 1,
         },
-      ])
+      ]);
     } else if (existing.joinedAt < user.joinedAt) {
       await this.userDB.put(user.address, user);
     }
@@ -212,8 +210,10 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return user;
   }
 
-  async getUsers(limit?: number, gt?: number|string): Promise<User[]> {
-    const options: any = { valueEncoding: 'json' };
+  async getUsers(limit?: number, gt?: number | string): Promise<User[]> {
+    const options: AbstractValueIteratorOptions<string, User> = {
+      valueEncoding: 'json',
+    };
 
     if (typeof gt === 'number') throw new Error(`"gte" must be an address`);
     if (typeof gt === 'string') options.gt = gt;
@@ -225,7 +225,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     });
   }
 
-  async getUser(address: string): Promise<User|null> {
+  async getUser(address: string): Promise<User | null> {
     try {
       const user = await this.userDB.get(address);
       if (user?.joinedAt) user.joinedAt = new Date(user.joinedAt);
@@ -240,20 +240,20 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return postmeta;
   }
 
-  async getPost(postHash: string): Promise<Post|null> {
+  async getPost(postHash: string): Promise<Post | null> {
     const json = await this.messageDB<PostJSON>()
       .get(postHash)
       .catch(() => null);
 
     if (!json) return null;
 
-    const {creator} = parseMessageId(json.messageId);
+    const { creator } = parseMessageId(json.messageId);
 
     if (json.type === MessageType.Post) {
       return new Post({
-        ...json as PostJSON,
-        creator,
+        ...(json as PostJSON),
         createdAt: new Date(json.createdAt),
+        creator,
       });
     }
 
@@ -273,7 +273,8 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     if (usermeta.coverImage) usermeta.coverImage = await getValue('coverImage');
     if (usermeta.profileImage) usermeta.profileImage = await getValue('profileImage');
     if (usermeta.bio) usermeta.bio = await getValue('bio');
-    if (usermeta.twitterVerification) usermeta.twitterVerification = await getValue('twitterVerification');
+    if (usermeta.twitterVerification)
+      usermeta.twitterVerification = await getValue('twitterVerification');
     if (usermeta.website) usermeta.website = await getValue('website');
     if (usermeta.ecdh) usermeta.ecdh = await getValue('ecdh');
     if (usermeta.idCommitment) usermeta.idCommitment = await getValue('idCommitment');
@@ -292,8 +293,10 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return followings;
   }
 
-  async insertGroupMember(groupId: string, member: GroupMember): Promise<GroupMember|null> {
-    const existing = await this.groupMembersDB(groupId).get(member.idCommitment).catch(() => null);
+  async insertGroupMember(groupId: string, member: GroupMember): Promise<GroupMember | null> {
+    const existing = await this.groupMembersDB(groupId)
+      .get(member.idCommitment)
+      .catch(() => null);
 
     if (existing) {
       return null;
@@ -301,24 +304,21 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
     await this.db.batch([
       {
-        type: 'put',
-        sublevel: this.groupMembersDB(groupId),
         key: member.idCommitment,
-        // @ts-ignore
+        sublevel: this.groupMembersDB(groupId),
+        type: 'put',
         value: member,
       },
       {
-        type: 'put',
-        sublevel: this.groupMemberlistDB(groupId),
         key: bytewise.encode(member.index).toString('hex'),
-        // @ts-ignore
+        sublevel: this.groupMemberlistDB(groupId),
+        type: 'put',
         value: member.idCommitment,
       },
       {
-        type: 'put',
-        sublevel: this.groupRootsDB,
         key: member.newRoot,
-        // @ts-ignore
+        sublevel: this.groupRootsDB,
+        type: 'put',
         value: groupId,
       },
     ]);
@@ -326,46 +326,47 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return member;
   }
 
-  async insertProfile(profile: Profile, proof: Proof): Promise<Profile|null> {
+  async insertProfile(profile: Profile, proof: Proof): Promise<Profile | null> {
     const json = profile.toJSON();
-    const existing = await this.messageDB().get(json.hash).catch(() => null);
+    const existing = await this.messageDB()
+      .get(json.hash)
+      .catch(() => null);
 
     if (existing) {
       throw AlreadyExistError;
     }
 
     const creatorMeta = await this.userMetaDB.get(profile.creator).catch(() => EmptyUserMeta());
-    const operations: BatchOperation<any, any, any>[] = [
+    const operations: BatchOperation<Level<string, unknown>, string, unknown>[] = [
       {
-        type: 'put',
-        sublevel: this.messageDB(),
         key: json.hash,
-        // @ts-ignore
+        sublevel: this.messageDB(),
+        type: 'put',
         value: json,
       },
       {
-        type: 'put',
-        sublevel: this.proofDB(),
         key: json.hash,
-        // @ts-ignore
+        sublevel: this.proofDB(),
+        type: 'put',
         value: proof,
       },
       {
-        type: 'put',
-        sublevel: this.userMessageDB(profile.creator),
         key: bytewise.encode(profile.createdAt),
-        // @ts-ignore
+        sublevel: this.userMessageDB(profile.creator),
+        type: 'put',
         value: json.hash,
       },
     ];
 
     const checkAndReplace = async (key: UserMetaKey) => {
       const hash = creatorMeta[key];
-      const msg = await this.messageDB<ProfileJSON>().get(hash).catch(() => null);
+      const msg = await this.messageDB<ProfileJSON>()
+        .get(hash)
+        .catch(() => null);
       if (!msg || msg.createdAt < profile.createdAt.getTime()) {
         creatorMeta[key] = profile.hash();
       }
-    }
+    };
 
     switch (profile.subtype) {
       case ProfileMessageSubType.Bio:
@@ -399,10 +400,9 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     }
 
     operations.push({
-      type: 'put',
-      sublevel: this.userMetaDB,
       key: profile.creator,
-      // @ts-ignore,
+      sublevel: this.userMetaDB,
+      type: 'put',
       value: {
         ...creatorMeta,
       },
@@ -413,9 +413,11 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return profile;
   }
 
-  async insertConnection(conn: Connection, proof: Proof): Promise<Connection|null> {
+  async insertConnection(conn: Connection, proof: Proof): Promise<Connection | null> {
     const json = conn.toJSON();
-    const existing = await this.messageDB().get(json.hash).catch(() => null);
+    const existing = await this.messageDB()
+      .get(json.hash)
+      .catch(() => null);
 
     if (!conn.payload.name) return null;
 
@@ -427,35 +429,31 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     const creatorMeta = await this.userMetaDB.get(conn.creator).catch(() => EmptyUserMeta());
     const encodedKey = this.encodeMessageSortKey(conn);
 
-    const operations: BatchOperation<any, any, any>[] = [
+    const operations: BatchOperation<Level<string, unknown>, string, unknown>[] = [
       {
-        type: 'put',
-        sublevel: this.messageDB(),
         key: json.hash,
-        // @ts-ignore
+        sublevel: this.messageDB(),
+        type: 'put',
         value: json,
       },
       {
-        type: 'put',
-        sublevel: this.proofDB(),
         key: json.hash,
-        // @ts-ignore
+        sublevel: this.proofDB(),
+        type: 'put',
         value: proof,
       },
       {
-        type: 'put',
-        sublevel: this.userMessageDB(conn.creator),
         key: bytewise.encode(conn.createdAt),
-        // @ts-ignore
+        sublevel: this.userMessageDB(conn.creator),
+        type: 'put',
         value: json.hash,
       },
       {
-        type: 'put',
-        sublevel: this.connectionsDB(conn.payload.name),
         key: encodedKey,
-        // @ts-ignore
+        sublevel: this.connectionsDB(conn.payload.name),
+        type: 'put',
         value: json.hash,
-      }
+      },
     ];
 
     switch (conn.subtype) {
@@ -470,10 +468,9 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     }
 
     operations.push({
-      type: 'put',
-      sublevel: this.userMetaDB,
       key: conn.payload.name,
-      // @ts-ignore,
+      sublevel: this.userMetaDB,
+      type: 'put',
       value: {
         ...EmptyUserMeta(),
         ...userMeta,
@@ -481,10 +478,9 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     });
 
     operations.push({
-      type: 'put',
-      sublevel: this.userMetaDB,
       key: conn.creator,
-      // @ts-ignore,
+      sublevel: this.userMetaDB,
+      type: 'put',
       value: {
         ...EmptyUserMeta(),
         ...creatorMeta,
@@ -496,9 +492,11 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return conn;
   }
 
-  async insertModeration(mod: Moderation, proof: Proof): Promise<Moderation|null> {
+  async insertModeration(mod: Moderation, proof: Proof): Promise<Moderation | null> {
     const json = mod.toJSON();
-    const existing = await this.messageDB().get(json.hash).catch(() => null);
+    const existing = await this.messageDB()
+      .get(json.hash)
+      .catch(() => null);
 
     if (!mod.payload.reference) return null;
 
@@ -506,39 +504,35 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       throw AlreadyExistError;
     }
 
-    const {creator, hash} = parseMessageId(mod.payload.reference);
+    const { creator, hash } = parseMessageId(mod.payload.reference);
     const postMeta = await this.getPostMeta(hash);
     const isOP = mod.creator === creator;
 
     const encodedKey = this.encodeMessageSortKey(mod);
 
-    const operations: BatchOperation<any, any, any>[] = [
+    const operations: BatchOperation<Level<string, unknown>, string, unknown>[] = [
       {
-        type: 'put',
-        sublevel: this.messageDB(),
         key: json.hash,
-        // @ts-ignore
+        sublevel: this.messageDB(),
+        type: 'put',
         value: json,
       },
       {
-        type: 'put',
-        sublevel: this.proofDB(),
         key: json.hash,
-        // @ts-ignore
+        sublevel: this.proofDB(),
+        type: 'put',
         value: proof,
       },
       {
-        type: 'put',
-        sublevel: this.userMessageDB(mod.creator),
         key: bytewise.encode(mod.createdAt),
-        // @ts-ignore
+        sublevel: this.userMessageDB(mod.creator),
+        type: 'put',
         value: json.hash,
       },
       {
-        type: 'put',
-        sublevel: this.moderationsDB(hash),
         key: encodedKey,
-        // @ts-ignore,
+        sublevel: this.moderationsDB(hash),
+        type: 'put',
         value: json.hash,
       },
     ];
@@ -561,10 +555,9 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     }
 
     operations.push({
-      type: 'put',
-      sublevel: this.postMetaDB,
       key: hash,
-      // @ts-ignore,
+      sublevel: this.postMetaDB,
+      type: 'put',
       value: {
         ...EmptyPostMeta(),
         ...postMeta,
@@ -578,37 +571,36 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
   async insertPost(post: Post, proof: Proof): Promise<Post> {
     const json = post.toJSON();
-    const existing = await this.messageDB().get(json.hash).catch(() => null);
+    const existing = await this.messageDB()
+      .get(json.hash)
+      .catch(() => null);
 
     if (existing) {
       throw AlreadyExistError;
     }
 
-    const creatorMeta = await this.userMetaDB.get(post.creator).catch(() => EmptyUserMeta())
+    const creatorMeta = await this.userMetaDB.get(post.creator).catch(() => EmptyUserMeta());
     const postMeta = await this.getPostMeta(json.hash);
     let postMetaDirty = false;
     const encodedKey = this.encodeMessageSortKey(post);
 
-    const operations: BatchOperation<any, any, any>[] = [
+    const operations: BatchOperation<Level<string, unknown>, string, unknown>[] = [
       {
-        type: 'put',
-        sublevel: this.messageDB(),
         key: json.hash,
-        // @ts-ignore
+        sublevel: this.messageDB(),
+        type: 'put',
         value: json,
       },
       {
-        type: 'put',
-        sublevel: this.proofDB(),
         key: json.hash,
-        // @ts-ignore
+        sublevel: this.proofDB(),
+        type: 'put',
         value: proof,
       },
       {
-        type: 'put',
-        sublevel: this.userMessageDB(post.creator),
         key: bytewise.encode(post.createdAt),
-        // @ts-ignore
+        sublevel: this.userMessageDB(post.creator),
+        type: 'put',
         value: json.hash,
       },
     ];
@@ -618,10 +610,9 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       postMetaDirty = true;
       postMeta.groupId = groupId || '';
       operations.push({
-        type: "put",
-        sublevel: this.groupPostsDB(groupId || ''),
         key: encodedKey,
-        // @ts-ignore
+        sublevel: this.groupPostsDB(groupId || ''),
+        type: 'put',
         value: json.hash,
       });
     } else if (proof.type === '' && proof.group) {
@@ -631,75 +622,70 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
     if (!post.payload.reference) {
       operations.push({
-        type: 'put',
-        sublevel: this.postlistDB,
         key: encodedKey,
-        // @ts-ignore
+        sublevel: this.postlistDB,
+        type: 'put',
         value: json.hash,
       });
       operations.push({
-        type: 'put',
-        sublevel: this.userPostsDB(post.creator),
         key: bytewise.encode(post.createdAt),
-        // @ts-ignore
+        sublevel: this.userPostsDB(post.creator),
+        type: 'put',
         value: json.hash,
       });
       creatorMeta.posts = creatorMeta.posts + 1;
       operations.push({
-        type: 'put',
-        sublevel: this.userMetaDB,
         key: post.creator,
-        // @ts-ignore
+        sublevel: this.userMetaDB,
+        type: 'put',
         value: {
           ...EmptyUserMeta(),
           ...creatorMeta,
         },
       });
-    } else if (post.subtype === PostMessageSubType.Reply || post.subtype === PostMessageSubType.MirrorReply) {
-      const {hash} = parseMessageId(post.payload.reference);
+    } else if (
+      post.subtype === PostMessageSubType.Reply ||
+      post.subtype === PostMessageSubType.MirrorReply
+    ) {
+      const { hash } = parseMessageId(post.payload.reference);
       postMeta.reply = postMeta.reply + 1;
       postMetaDirty = true;
       operations.push({
-        type: 'put',
-        sublevel: this.threadDB(hash),
         key: encodedKey,
-        // @ts-ignore
+        sublevel: this.threadDB(hash),
+        type: 'put',
         value: json.hash,
       });
     } else if (post.subtype === PostMessageSubType.Repost) {
-      const {hash} = parseMessageId(post.payload.reference);
+      const { hash } = parseMessageId(post.payload.reference);
       postMetaDirty = true;
       postMeta.repost = postMeta.repost + 1;
 
       operations.push({
-        type: 'put',
+        key: encodedKey,
         sublevel: this.postlistDB,
-        key: encodedKey,
-        // @ts-ignore
+        type: 'put',
         value: json.hash,
       });
       operations.push({
-        type: 'put',
-        sublevel: this.userPostsDB(post.creator),
         key: bytewise.encode(post.createdAt),
-        // @ts-ignore
+        sublevel: this.userPostsDB(post.creator),
+        type: 'put',
         value: json.hash,
       });
       operations.push({
-        type: 'put',
-        sublevel: this.repostDB(hash),
         key: encodedKey,
-        // @ts-ignore
+        sublevel: this.repostDB(hash),
+        type: 'put',
         value: json.hash,
       });
     }
 
     if (postMetaDirty) {
       operations.push({
-        type: 'put',
-        sublevel: this.postMetaDB,
         key: json.hash,
-        // @ts-ignore
+        sublevel: this.postMetaDB,
+        type: 'put',
         value: postMeta,
       });
     }
@@ -709,21 +695,28 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return post;
   }
 
-  async getPosts(limit?: number, offset?: number|string): Promise<Post[]> {
-    const options: any = { valueEncoding: 'json', reverse: true };
+  async getPosts(limit?: number, offset?: number | string): Promise<Post[]> {
+    const options: AbstractValueIteratorOptions<string, string> = {
+      reverse: true,
+      valueEncoding: 'json',
+    };
 
     if (typeof limit === 'number') options.limit = limit;
 
     if (typeof offset === 'string') {
-      const offsetPost = await this.messageDB<PostJSON>().get(offset).catch(() => null);
+      const offsetPost = await this.messageDB<PostJSON>()
+        .get(offset)
+        .catch(() => null);
       if (offsetPost) {
         const { messageId, ...json } = offsetPost;
-        const {creator} = parseMessageId(messageId);
-        const encodedKey = this.encodeMessageSortKey(new Post({
-          ...json,
-          creator,
-          createdAt: new Date(json.createdAt),
-        }));
+        const { creator } = parseMessageId(messageId);
+        const encodedKey = this.encodeMessageSortKey(
+          new Post({
+            ...json,
+            createdAt: new Date(json.createdAt),
+            creator,
+          })
+        );
         options.lt = encodedKey;
       }
     }
@@ -733,13 +726,15 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     for await (const value of this.postlistDB.values(options)) {
       const post = await this.messageDB<PostJSON>().get(value);
       const { messageId, ...json } = post;
-      const {creator} = parseMessageId(messageId);
+      const { creator } = parseMessageId(messageId);
 
-      posts.push(new Post({
-        ...json,
-        creator,
-        createdAt: new Date(json.createdAt),
-      }));
+      posts.push(
+        new Post({
+          ...json,
+          createdAt: new Date(json.createdAt),
+          creator,
+        })
+      );
     }
 
     return posts;
@@ -751,20 +746,27 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       groups: { [groupId: string]: true };
     },
     limit = -1,
-    offset?: number|string
+    offset?: number | string
   ): Promise<Post[]> {
-    const options: any = { valueEncoding: 'json', reverse: true };
+    const options: AbstractValueIteratorOptions<string, string> = {
+      reverse: true,
+      valueEncoding: 'json',
+    };
 
     if (typeof offset === 'string') {
-      const offsetPost = await this.messageDB<PostJSON>().get(offset).catch(() => null);
+      const offsetPost = await this.messageDB<PostJSON>()
+        .get(offset)
+        .catch(() => null);
       if (offsetPost) {
         const { messageId, ...json } = offsetPost;
-        const {creator} = parseMessageId(messageId);
-        const encodedKey = this.encodeMessageSortKey(new Post({
-          ...json,
-          creator,
-          createdAt: new Date(json.createdAt),
-        }));
+        const { creator } = parseMessageId(messageId);
+        const encodedKey = this.encodeMessageSortKey(
+          new Post({
+            ...json,
+            createdAt: new Date(json.createdAt),
+            creator,
+          })
+        );
         options.lt = encodedKey;
       }
     }
@@ -773,8 +775,8 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
     for await (const value of this.postlistDB.values(options)) {
       const post = await this.messageDB<PostJSON>().get(value);
-      const { messageId, hash, ...json } = post;
-      const {creator} = parseMessageId(messageId);
+      const { hash, messageId, ...json } = post;
+      const { creator } = parseMessageId(messageId);
 
       if (creator && !filter.addresses[creator]) {
         continue;
@@ -787,11 +789,13 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         continue;
       }
 
-      posts.push(new Post({
-        ...json,
-        creator,
-        createdAt: new Date(json.createdAt),
-      }));
+      posts.push(
+        new Post({
+          ...json,
+          createdAt: new Date(json.createdAt),
+          creator,
+        })
+      );
 
       if (limit > -1) {
         if (posts.length >= limit) {
@@ -803,14 +807,20 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return posts;
   }
 
-  async getUserPosts(address: string, limit?: number, offset?: number|string): Promise<Post[]> {
-    const options: any = { valueEncoding: 'json', reverse: true };
+  async getUserPosts(address: string, limit?: number, offset?: number | string): Promise<Post[]> {
+    const options: AbstractValueIteratorOptions<string, string> = {
+      reverse: true,
+      valueEncoding: 'json',
+    };
 
     if (typeof limit === 'number') options.limit = limit;
 
     if (typeof offset === 'string') {
-      const offsetPost = await this.messageDB<PostJSON>().get(offset).catch(() => null);
+      const offsetPost = await this.messageDB<PostJSON>()
+        .get(offset)
+        .catch(() => null);
       if (offsetPost) {
+        // @ts-expect-error todo: fix type: .toString()
         options.lt = bytewise.encode(new Date(offsetPost.createdAt));
       }
     }
@@ -820,26 +830,34 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     for await (const value of this.userPostsDB(address).values(options)) {
       const post = await this.messageDB<PostJSON>().get(value);
       const { messageId, ...json } = post;
-      const {creator} = parseMessageId(messageId);
+      const { creator } = parseMessageId(messageId);
 
-      posts.push(new Post({
-        ...json,
-        creator,
-        createdAt: new Date(json.createdAt),
-      }));
+      posts.push(
+        new Post({
+          ...json,
+          createdAt: new Date(json.createdAt),
+          creator,
+        })
+      );
     }
 
     return posts;
   }
 
-  async getGroupPosts(groupId: string, limit?: number, offset?: number|string): Promise<Post[]> {
-    const options: any = { valueEncoding: 'json', reverse: true };
+  async getGroupPosts(groupId: string, limit?: number, offset?: number | string): Promise<Post[]> {
+    const options: AbstractValueIteratorOptions<string, string> = {
+      reverse: true,
+      valueEncoding: 'json',
+    };
 
     if (typeof limit === 'number') options.limit = limit;
 
     if (typeof offset === 'string') {
-      const offsetPost = await this.messageDB<PostJSON>().get(offset).catch(() => null);
+      const offsetPost = await this.messageDB<PostJSON>()
+        .get(offset)
+        .catch(() => null);
       if (offsetPost) {
+        // @ts-expect-error todo: fix type: .toString()
         options.lt = bytewise.encode(new Date(offsetPost.createdAt));
       }
     }
@@ -849,34 +867,40 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     for await (const value of this.groupPostsDB(groupId).values(options)) {
       const post = await this.messageDB<PostJSON>().get(value);
       const { messageId, ...json } = post;
-      const {creator} = parseMessageId(messageId);
+      const { creator } = parseMessageId(messageId);
 
-      posts.push(new Post({
-        ...json,
-        creator,
-        createdAt: new Date(json.createdAt),
-      }));
+      posts.push(
+        new Post({
+          ...json,
+          createdAt: new Date(json.createdAt),
+          creator,
+        })
+      );
     }
 
     return posts;
   }
 
-  async getReplies(hash: string, limit?: number, offset?: number|string): Promise<Post[]> {
-    const options: any = { valueEncoding: 'json' };
+  async getReplies(hash: string, limit?: number, offset?: number | string): Promise<Post[]> {
+    const options: AbstractValueIteratorOptions<string, string> = { valueEncoding: 'json' };
 
     if (typeof limit === 'number') options.limit = limit;
 
     if (typeof offset === 'string') {
-      const offsetPostHash = await this.threadDB(hash).get(offset).catch(() => null);
+      const offsetPostHash = await this.threadDB(hash)
+        .get(offset)
+        .catch(() => null);
       if (offsetPostHash) {
         const offsetPost = await this.messageDB<PostJSON>().get(offsetPostHash);
         const { messageId, ...json } = offsetPost;
-        const {creator} = parseMessageId(messageId);
-        const encodedKey = this.encodeMessageSortKey(new Post({
-          ...json,
-          creator,
-          createdAt: new Date(json.createdAt),
-        }));
+        const { creator } = parseMessageId(messageId);
+        const encodedKey = this.encodeMessageSortKey(
+          new Post({
+            ...json,
+            createdAt: new Date(json.createdAt),
+            creator,
+          })
+        );
         options.gt = encodedKey;
       }
     }
@@ -886,34 +910,40 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     for await (const value of this.threadDB(hash).values(options)) {
       const post = await this.messageDB<PostJSON>().get(value);
       const { messageId, ...json } = post;
-      const {creator} = parseMessageId(messageId);
+      const { creator } = parseMessageId(messageId);
 
-      posts.push(new Post({
-        ...json,
-        creator,
-        createdAt: new Date(json.createdAt),
-      }));
+      posts.push(
+        new Post({
+          ...json,
+          createdAt: new Date(json.createdAt),
+          creator,
+        })
+      );
     }
 
     return posts;
   }
 
-  async getReposts(hash: string, limit?: number, offset?: number|string): Promise<string[]> {
-    const options: any = { valueEncoding: 'json' };
+  async getReposts(hash: string, limit?: number, offset?: number | string): Promise<string[]> {
+    const options: AbstractValueIteratorOptions<string, string> = { valueEncoding: 'json' };
 
     if (typeof limit === 'number') options.limit = limit;
 
     if (typeof offset === 'string') {
-      const offsetPostHash = await this.threadDB(hash).get(offset).catch(() => null);
+      const offsetPostHash = await this.threadDB(hash)
+        .get(offset)
+        .catch(() => null);
       if (offsetPostHash) {
         const offsetPost = await this.messageDB<PostJSON>().get(offsetPostHash);
         const { messageId, ...json } = offsetPost;
-        const {creator} = parseMessageId(messageId);
-        const encodedKey = this.encodeMessageSortKey(new Post({
-          ...json,
-          creator,
-          createdAt: new Date(json.createdAt),
-        }));
+        const { creator } = parseMessageId(messageId);
+        const encodedKey = this.encodeMessageSortKey(
+          new Post({
+            ...json,
+            createdAt: new Date(json.createdAt),
+            creator,
+          })
+        );
         options.gt = encodedKey;
       }
     }
@@ -929,22 +959,30 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return ids;
   }
 
-  async getModerations(hash: string, limit?: number, offset?: number|string): Promise<Moderation[]> {
-    const options: any = { valueEncoding: 'json' };
+  async getModerations(
+    hash: string,
+    limit?: number,
+    offset?: number | string
+  ): Promise<Moderation[]> {
+    const options: AbstractValueIteratorOptions<string, string> = { valueEncoding: 'json' };
 
     if (typeof limit === 'number') options.limit = limit;
 
     if (typeof offset === 'string') {
-      const offsetModHash = await this.moderationsDB(hash).get(offset).catch(() => null);
+      const offsetModHash = await this.moderationsDB(hash)
+        .get(offset)
+        .catch(() => null);
       if (offsetModHash) {
         const offsetMod = await this.messageDB<ModerationJSON>().get(offsetModHash);
         const { messageId, ...json } = offsetMod;
-        const {creator} = parseMessageId(messageId);
-        const encodedKey = this.encodeMessageSortKey(new Moderation({
-          ...json,
-          creator,
-          createdAt: new Date(json.createdAt),
-        }));
+        const { creator } = parseMessageId(messageId);
+        const encodedKey = this.encodeMessageSortKey(
+          new Moderation({
+            ...json,
+            createdAt: new Date(json.createdAt),
+            creator,
+          })
+        );
         options.gt = encodedKey;
       }
     }
@@ -953,33 +991,43 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
     for await (const value of this.moderationsDB(hash).values(options)) {
       const json = await this.messageDB<ModerationJSON>().get(value);
-      const {creator} = parseMessageId(json.messageId);
-      ids.push(new Moderation({
-        ...json,
-        creator,
-        createdAt: new Date(json.createdAt),
-      }));
+      const { creator } = parseMessageId(json.messageId);
+      ids.push(
+        new Moderation({
+          ...json,
+          createdAt: new Date(json.createdAt),
+          creator,
+        })
+      );
     }
 
     return ids;
   }
 
-  async getConnections(address: string, limit?: number, offset?: number|string): Promise<Connection[]> {
-    const options: any = { valueEncoding: 'json' };
+  async getConnections(
+    address: string,
+    limit?: number,
+    offset?: number | string
+  ): Promise<Connection[]> {
+    const options: AbstractValueIteratorOptions<string, string> = { valueEncoding: 'json' };
 
     if (typeof limit === 'number') options.limit = limit;
 
     if (typeof offset === 'string') {
-      const offsetConnHash = await this.connectionsDB(address).get(offset).catch(() => null);
+      const offsetConnHash = await this.connectionsDB(address)
+        .get(offset)
+        .catch(() => null);
       if (offsetConnHash) {
         const offsetConn = await this.messageDB<ConnectionJSON>().get(offsetConnHash);
         const { messageId, ...json } = offsetConn;
-        const {creator} = parseMessageId(messageId);
-        const encodedKey = this.encodeMessageSortKey(new Connection({
-          ...json,
-          creator,
-          createdAt: new Date(json.createdAt),
-        }));
+        const { creator } = parseMessageId(messageId);
+        const encodedKey = this.encodeMessageSortKey(
+          new Connection({
+            ...json,
+            createdAt: new Date(json.createdAt),
+            creator,
+          })
+        );
         options.gt = encodedKey;
       }
     }
@@ -988,25 +1036,34 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
     for await (const value of this.connectionsDB(address).values(options)) {
       const json = await this.messageDB<ConnectionJSON>().get(value);
-      const {creator} = parseMessageId(json.messageId);
-      ids.push(new Connection({
-        ...json,
-        creator,
-        createdAt: new Date(json.createdAt),
-      }));
+      const { creator } = parseMessageId(json.messageId);
+      ids.push(
+        new Connection({
+          ...json,
+          createdAt: new Date(json.createdAt),
+          creator,
+        })
+      );
     }
 
     return ids;
   }
 
-  async getMessagesByUser(address: string, limit?: number, offset?: number|string): Promise<AnyMessage[]> {
-    const options: any = { valueEncoding: 'json' };
+  async getMessagesByUser(
+    address: string,
+    limit?: number,
+    offset?: number | string
+  ): Promise<AnyMessage[]> {
+    const options: AbstractValueIteratorOptions<string, string> = { valueEncoding: 'json' };
 
     if (typeof limit === 'number') options.limit = limit;
 
     if (typeof offset === 'string') {
-      const offsetMsg = await this.messageDB<PostJSON>().get(offset).catch(() => null);
+      const offsetMsg = await this.messageDB<PostJSON>()
+        .get(offset)
+        .catch(() => null);
       if (offsetMsg) {
+        // @ts-expect-error todo: fix type: .toString()
         options.gt = bytewise.encode(new Date(offsetMsg.createdAt));
       }
     }
@@ -1014,36 +1071,46 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     const ids: AnyMessage[] = [];
 
     for await (const value of this.userMessageDB(address).values(options)) {
-      const json = await this.messageDB<PostJSON|ModerationJSON|ProfileJSON|ConnectionJSON>().get(value);
-      const {creator} = parseMessageId(json.messageId);
+      const json = await this.messageDB<
+        PostJSON | ModerationJSON | ProfileJSON | ConnectionJSON
+      >().get(value);
+      const { creator } = parseMessageId(json.messageId);
       switch (json.type) {
         case MessageType.Post:
-          ids.push(new Post({
-            ...json as PostJSON,
-            creator,
-            createdAt: new Date(json.createdAt),
-          }));
+          ids.push(
+            new Post({
+              ...(json as PostJSON),
+              createdAt: new Date(json.createdAt),
+              creator,
+            })
+          );
           break;
         case MessageType.Moderation:
-          ids.push(new Moderation({
-            ...json as ModerationJSON,
-            creator,
-            createdAt: new Date(json.createdAt),
-          }));
+          ids.push(
+            new Moderation({
+              ...(json as ModerationJSON),
+              createdAt: new Date(json.createdAt),
+              creator,
+            })
+          );
           break;
         case MessageType.Connection:
-          ids.push(new Connection({
-            ...json as ConnectionJSON,
-            creator,
-            createdAt: new Date(json.createdAt),
-          }));
+          ids.push(
+            new Connection({
+              ...(json as ConnectionJSON),
+              createdAt: new Date(json.createdAt),
+              creator,
+            })
+          );
           break;
         case MessageType.Profile:
-          ids.push(new Profile({
-            ...json as ProfileJSON,
-            creator,
-            createdAt: new Date(json.createdAt),
-          }));
+          ids.push(
+            new Profile({
+              ...(json as ProfileJSON),
+              createdAt: new Date(json.createdAt),
+              creator,
+            })
+          );
           break;
       }
     }
@@ -1051,13 +1118,19 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return ids;
   }
 
-  async getGroupMembers(groupId: string, limit?: number, offset?: number|string): Promise<string[]> {
-    const options: any = { valueEncoding: 'json' };
+  async getGroupMembers(
+    groupId: string,
+    limit?: number,
+    offset?: number | string
+  ): Promise<string[]> {
+    const options: AbstractValueIteratorOptions<string, string> = { valueEncoding: 'json' };
 
     if (typeof limit === 'number') options.limit = limit;
 
     if (typeof offset === 'string') {
-      const offsetMember = await this.groupMembersDB(groupId).get(offset).catch(() => null);
+      const offsetMember = await this.groupMembersDB(groupId)
+        .get(offset)
+        .catch(() => null);
       if (offsetMember) {
         const sortKey = bytewise.encode(offsetMember.index).toString('hex');
         options.gt = sortKey;

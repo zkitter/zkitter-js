@@ -1,6 +1,6 @@
-import {GenericDBAdapterInterface} from "./db";
-import {IncrementalMerkleTree} from "@zk-kit/incremental-merkle-tree";
-import EventEmitter2 from "eventemitter2";
+import { IncrementalMerkleTree } from '@zk-kit/incremental-merkle-tree';
+import { EventEmitter2 } from 'eventemitter2';
+import { GenericDBAdapterInterface } from './db';
 
 export interface GenericGroupAdapter extends EventEmitter2 {
   groupId: string;

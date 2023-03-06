@@ -1,8 +1,8 @@
-import {LevelDBAdapter} from "../adapters/leveldb";
-import {error} from "./logger";
-import {Zkitter} from "../services";
+import { LevelDBAdapter } from '../adapters/leveldb';
+import { Zkitter } from '../services';
+import { error } from './logger';
 
-export async function initZkitter(lazy?: boolean): Promise<Zkitter|null> {
+export async function initZkitter(lazy?: boolean): Promise<Zkitter | null> {
   const db = await LevelDBAdapter.initialize();
   const arbitrumProvider = await db.getArbitrumProvider();
 
@@ -14,8 +14,8 @@ export async function initZkitter(lazy?: boolean): Promise<Zkitter|null> {
   }
 
   return Zkitter.initialize({
-    db,
     arbitrumProvider,
+    db,
     lazy,
   });
 }
