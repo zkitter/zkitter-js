@@ -22,8 +22,8 @@
     "fix": "npm run lint:fix && npm run format:fix",
     "format:check": "prettier --check .",
     "format:fix": "prettier -w .",
-    "lint:check": "eslint . --ext .js,.ts",
-    "lint:fix": "eslint . --ext .js,.ts --fix",
+    "lint:check": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
     "validate": "concurrently tsc 'npm run depcheck' 'npm run lint:check' 'npm run format:check'"
   },
   "author": "0xtsukino",
