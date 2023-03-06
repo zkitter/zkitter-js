@@ -1,6 +1,6 @@
 const webpack = require('webpack');
 const nodeExternals = require('webpack-node-externals');
-const { compilerOptions } = require('./tsconfig.json');
+const { compilerOptions } = require('./tsconfig.compile.json');
 const path = require('path');
 
 const isProd = process.env.NODE_ENV === 'production';

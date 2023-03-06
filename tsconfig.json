@@ -1,25 +1,19 @@
 {
   "compilerOptions": {
+    "noEmit": true,
     "baseUrl": ".",
-    "target": "es5",
-    "lib": ["esnext", "dom"],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "module": "esnext",
     "moduleResolution": "node",
+    "module": "esnext",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "sourceMap": true,
     "useUnknownInCatchVariables": false,
-    "strictPropertyInitialization": false,
-    "emitDeclarationOnly": true,
-    "declaration": true,
-    "declarationMap": true,
-    "outDir": "dist"
+    "strictPropertyInitialization": false
   },
   "include": ["src", "types"]
 }
