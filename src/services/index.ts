@@ -424,65 +424,60 @@ export class Zkitter extends GenericService {
     const resp = await fetch(this.historyAPI + query);
     const json = await resp.json();
 
-    return new Promise(async (resolve, reject) => {
-      if (json.error) return reject(json.payload);
+    if (json.error) {
+      throw json.payload;
+    }
 
-      try {
-        for (const msg of json.payload) {
-          if (!msg) continue;
-          const { creator } = parseMessageId(msg.messageId);
-          let message: Message | null = null;
+    for (const msg of json.payload) {
+      if (!msg) continue;
+      const { creator } = parseMessageId(msg.messageId);
+      let message: Message | null = null;
 
-          switch (msg.type) {
-            case MessageType.Post:
-              message = new Post({
-                createdAt: new Date(msg.createdAt),
-                creator,
-                payload: msg.payload,
-                subtype: msg.subtype,
-                type: msg.type,
-              });
-              break;
-            case MessageType.Moderation:
-              message = new Moderation({
-                createdAt: new Date(msg.createdAt),
-                creator,
-                payload: msg.payload,
-                subtype: msg.subtype,
-                type: msg.type,
-              });
-              break;
-            case MessageType.Connection:
-              message = new Connection({
-                createdAt: new Date(msg.createdAt),
-                creator,
-                payload: msg.payload,
-                subtype: msg.subtype,
-                type: msg.type,
-              });
-              break;
-            case MessageType.Profile:
-              message = new Profile({
-                createdAt: new Date(msg.createdAt),
-                creator,
-                payload: msg.payload,
-                subtype: msg.subtype,
-                type: msg.type,
-              });
-              break;
-          }
-
-          if (message) {
-            await this.insert(message, { group: msg.group, proof: null, type: '' });
-          }
-        }
-
-        await this.db.setHistoryDownloaded(true, user);
-        resolve();
-      } catch (e) {
-        reject(e);
+      switch (msg.type) {
+        case MessageType.Post:
+          message = new Post({
+            createdAt: new Date(msg.createdAt),
+            creator,
+            payload: msg.payload,
+            subtype: msg.subtype,
+            type: msg.type,
+          });
+          break;
+        case MessageType.Moderation:
+          message = new Moderation({
+            createdAt: new Date(msg.createdAt),
+            creator,
+            payload: msg.payload,
+            subtype: msg.subtype,
+            type: msg.type,
+          });
+          break;
+        case MessageType.Connection:
+          message = new Connection({
+            createdAt: new Date(msg.createdAt),
+            creator,
+            payload: msg.payload,
+            subtype: msg.subtype,
+            type: msg.type,
+          });
+          break;
+        case MessageType.Profile:
+          message = new Profile({
+            createdAt: new Date(msg.createdAt),
+            creator,
+            payload: msg.payload,
+            subtype: msg.subtype,
+            type: msg.type,
+          });
+          break;
       }
-    });
+
+      if (message) {
+        await this.insert(message, { group: msg.group, proof: null, type: '' });
+      }
+    }
+
+    await this.db.setHistoryDownloaded(true, user);
   }
 
   async getProof(hash: string): Promise<Proof | null> {
