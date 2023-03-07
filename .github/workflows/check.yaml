@@ -43,5 +43,5 @@ jobs:
 
       - name: Dependency check
         run: |
-          pnpm run depcheck | tee depcheck.txt
+          pnpm run depcheck | sed '$d' | tee depcheck.txt
           cat depcheck.txt | grep -q "Missing dependencies" && exit 1 || exit 0
