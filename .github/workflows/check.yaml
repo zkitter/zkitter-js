@@ -42,4 +42,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Dependency check
-        run: pnpm run depcheck
+        run: |
+          pnpm run depcheck | tee depcheck.txt
+          cat depcheck.txt | grep -q "Missing dependencies" && exit 1 || exit 0
