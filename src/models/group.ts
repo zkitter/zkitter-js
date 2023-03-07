@@ -6,4 +6,4 @@ export type GroupMember = {
   idCommitment: string;
   index: number;
   newRoot: string;
-}
+};

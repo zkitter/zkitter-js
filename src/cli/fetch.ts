@@ -1,6 +1,6 @@
-import {Command} from "commander";
-import {initZkitter} from "../utils/cli";
-import {ZkitterEvents} from "../services";
+import { Command } from 'commander';
+import { initZkitter } from '../utils/cli';
+import { ZkitterEvents } from '../services';
 
 export function fetch(program: Command) {
   program

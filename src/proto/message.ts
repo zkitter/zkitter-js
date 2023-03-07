@@ -1,9 +1,9 @@
 /* eslint-disable import/export */
 /* eslint-disable @typescript-eslint/no-namespace */
 
-import { encodeMessage, decodeMessage, message } from "protons-runtime";
-import type { Uint8ArrayList } from "uint8arraylist";
-import type { Codec } from "protons-runtime";
+import { encodeMessage, decodeMessage, message } from 'protons-runtime';
+import type { Uint8ArrayList } from 'uint8arraylist';
+import type { Codec } from 'protons-runtime';
 
 export interface Message {
   timestamp: bigint;
@@ -26,28 +26,21 @@ export namespace Message {
             writer.uint32(8);
             writer.uint64(obj.timestamp);
           } else {
-            throw new Error(
-              'Protocol error: required field "timestamp" was not found in object'
-            );
+            throw new Error('Protocol error: required field "timestamp" was not found in object');
           }
-
 
           if (obj.data != null) {
             writer.uint32(18);
             writer.bytes(obj.data);
           } else {
-            throw new Error(
-              'Protocol error: required field "data" was not found in object'
-            );
+            throw new Error('Protocol error: required field "data" was not found in object');
           }
 
           if (obj.proof != null) {
             writer.uint32(26);
             writer.bytes(obj.proof);
           } else {
-            throw new Error(
-              'Protocol error: required field "payload" was not found in object'
-            );
+            throw new Error('Protocol error: required field "payload" was not found in object');
           }
 
           if (opts.lengthDelimited !== false) {

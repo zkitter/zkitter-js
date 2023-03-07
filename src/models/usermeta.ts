@@ -1,4 +1,12 @@
-export type UserMetaKey = 'nickname' | 'coverImage' | 'profileImage' | 'website' | 'twitterVerification' | 'bio' | 'ecdh' | 'idCommitment';
+export type UserMetaKey =
+  | 'nickname'
+  | 'coverImage'
+  | 'profileImage'
+  | 'website'
+  | 'twitterVerification'
+  | 'bio'
+  | 'ecdh'
+  | 'idCommitment';
 
 export type UserMeta = {
   nickname: string;
@@ -33,4 +41,3 @@ export const EmptyUserMeta = (): UserMeta => ({
   blocking: 0,
   posts: 0,
 });
-

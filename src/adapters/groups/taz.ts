@@ -1,8 +1,8 @@
 import { generateMerkleTree } from '@zk-kit/protocols';
-import {IncrementalMerkleTree} from "@zk-kit/incremental-merkle-tree";
-import {GenericGroupAdapter, GroupEvents} from "../group";
-import {GenericDBAdapterInterface} from "../db";
-import EventEmitter2, {ConstructorOptions} from "eventemitter2";
+import { IncrementalMerkleTree } from '@zk-kit/incremental-merkle-tree';
+import { GenericGroupAdapter, GroupEvents } from '../group';
+import { GenericDBAdapterInterface } from '../db';
+import EventEmitter2, { ConstructorOptions } from 'eventemitter2';
 
 export class TazGroup extends EventEmitter2 implements GenericGroupAdapter {
   db: GenericDBAdapterInterface;
@@ -11,9 +11,11 @@ export class TazGroup extends EventEmitter2 implements GenericGroupAdapter {
 
   api = 'https://api.zkitter.com/v1/group_members/semaphore_taz_members';
 
-  constructor(opts: {
-    db: GenericDBAdapterInterface,
-  } & ConstructorOptions) {
+  constructor(
+    opts: {
+      db: GenericDBAdapterInterface;
+    } & ConstructorOptions
+  ) {
     super(opts);
     this.db = opts.db;
   }
@@ -42,16 +44,12 @@ export class TazGroup extends EventEmitter2 implements GenericGroupAdapter {
   }
 
   async tree(depth = 15): Promise<IncrementalMerkleTree> {
-    const tree = generateMerkleTree(
-      depth,
-      BigInt(0),
-      await this.members(),
-    );
+    const tree = generateMerkleTree(depth, BigInt(0), await this.members());
 
     return tree;
   }
 
-  async members(limit?: number, offset?: number|string): Promise<string[]> {
+  async members(limit?: number, offset?: number | string): Promise<string[]> {
     return this.db.getGroupMembers(this.groupId, limit, offset);
   }
 

@@ -7,6 +7,6 @@
 
 (async () => {
   console.log('hi');
-})()
+})();
 
-export {}
+export {};

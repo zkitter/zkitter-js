@@ -1,9 +1,9 @@
-import {Command} from "commander";
-import {initZkitter} from "../utils/cli";
-import {error, success} from "../utils/logger";
-import {Zkitter} from "../services";
-import {Strategy, ZkIdentity} from "@zk-kit/identity";
-import {sha256, signWithP256} from "../utils/crypto";
+import { Command } from 'commander';
+import { initZkitter } from '../utils/cli';
+import { error, success } from '../utils/logger';
+import { Zkitter } from '../services';
+import { Strategy, ZkIdentity } from '@zk-kit/identity';
+import { sha256, signWithP256 } from '../utils/crypto';
 
 export function write(program: Command) {
   program
@@ -13,17 +13,12 @@ export function write(program: Command) {
     .option('-u, --user <address>', 'address of the creator')
     .option('-g, --group <groupId>', 'id of the zk group')
     .option('-s, --secret <secret>', 'identity secret (private key or serialize ZK Identity)')
-    .action(async (options) => {
+    .action(async options => {
       const zkitter = await initZkitter();
 
       if (!zkitter) return;
 
-      const {
-        content,
-        user,
-        secret,
-        group,
-      } = options;
+      const { content, user, secret, group } = options;
 
       await handleWrite(zkitter, user, group, content, secret);
 
@@ -36,7 +31,7 @@ export async function handleWrite(
   address: string,
   group: string,
   content: string,
-  secret: string,
+  secret: string
 ) {
   try {
     const [identityTrapdoor, identityNullifier] = secret.split('_');
@@ -44,11 +39,14 @@ export async function handleWrite(
     let zkIdentity: ZkIdentity | undefined = undefined;
 
     if (group) {
-      zkIdentity = new ZkIdentity(Strategy.SERIALIZED, JSON.stringify({
-        identityTrapdoor,
-        identityNullifier,
-        secret: [identityTrapdoor, identityNullifier],
-      }));
+      zkIdentity = new ZkIdentity(
+        Strategy.SERIALIZED,
+        JSON.stringify({
+          identityTrapdoor,
+          identityNullifier,
+          secret: [identityTrapdoor, identityNullifier],
+        })
+      );
     } else if (address && secret) {
       privateKey = secret;
     } else if (!address && secret) {
@@ -69,5 +67,4 @@ export async function handleWrite(
   } catch (e) {
     error(e.message);
   }
-
 }

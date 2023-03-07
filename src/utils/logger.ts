@@ -1,5 +1,5 @@
 import winston from 'winston';
-import chalk from "chalk";
+import chalk from 'chalk';
 
 const format = winston.format;
 const { combine, timestamp } = format;

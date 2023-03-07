@@ -51,5 +51,4 @@ export const toBigInt = (value: string | number): BigInt => {
 
 export const hexify = (value: string | number): string => {
   return '0x' + toBigInt(value).toString(16);
-}
-
+};

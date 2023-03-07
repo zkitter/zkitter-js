@@ -1,5 +1,5 @@
 // import logger from './logger';
-import EventEmitter2, {ConstructorOptions} from "eventemitter2";
+import EventEmitter2, { ConstructorOptions } from 'eventemitter2';
 
 let callerId = 0;
 let getterId = 0;

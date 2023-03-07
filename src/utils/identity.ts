@@ -1,5 +1,5 @@
-import {sha256} from "./crypto";
-import {arrayBufToBase64UrlEncode, hexToArrayBuf} from "./encoding";
+import { sha256 } from './crypto';
+import { arrayBufToBase64UrlEncode, hexToArrayBuf } from './encoding';
 import EC from 'elliptic';
 
 export const generateIdentity = async (
