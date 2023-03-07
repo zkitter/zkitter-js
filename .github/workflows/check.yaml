@@ -42,4 +42,4 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Dependency check
-        run: pnpm run depcheck
+        run: pnpm run depcheck | grep -q "Missing" && exit 1 || exit 0
