@@ -10,10 +10,18 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
     "module": "esnext",
+    "target": "es5",
+    "lib": [
+      "esnext",
+      "dom"
+    ],
     "resolveJsonModule": true,
     "isolatedModules": true,
     "useUnknownInCatchVariables": false,
     "strictPropertyInitialization": false
   },
-  "include": ["src", "types"]
+  "include": [
+    "src",
+    "types"
+  ]
 }
