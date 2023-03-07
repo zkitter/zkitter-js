@@ -1,13 +1,13 @@
-import {GenericService} from "../utils/svc";
-import Web3 from "web3";
-import {provider} from "web3-core";
-import {GenericDBAdapterInterface} from "../adapters/db";
-import {arbRegistrarABI} from "../utils/abi";
-import {Contract} from "web3-eth-contract";
-import {User} from "../models/user";
-import {UserMeta} from "../models/usermeta";
-import {ConstructorOptions} from "eventemitter2";
-import mutexify from "../utils/mux";
+import { GenericService } from '../utils/svc';
+import Web3 from 'web3';
+import { provider } from 'web3-core';
+import { GenericDBAdapterInterface } from '../adapters/db';
+import { arbRegistrarABI } from '../utils/abi';
+import { Contract } from 'web3-eth-contract';
+import { User } from '../models/user';
+import { UserMeta } from '../models/usermeta';
+import { ConstructorOptions } from 'eventemitter2';
+import mutexify from '../utils/mux';
 
 export const ARBITRUM_REGISTRAR_ADDRESS = '0x6b0a11F9aA5aa275f16e44e1D479A59dd00abE58';
 
@@ -31,13 +31,13 @@ export class UserService extends GenericService {
   http?: provider;
   ws?: provider;
 
-  getBlock: (block: string|number) => Promise<any>;
+  getBlock: (block: string | number) => Promise<any>;
 
   constructor(
     props: ConstructorOptions & {
-      db: GenericDBAdapterInterface,
-      arbitrumProvider: string,
-    },
+      db: GenericDBAdapterInterface;
+      arbitrumProvider: string;
+    }
   ) {
     super(props);
     const url = new URL(props.arbitrumProvider);
@@ -71,30 +71,35 @@ export class UserService extends GenericService {
   }
 
   async subscribeRegistrar(startingBlock?: number): Promise<void> {
-    const lastBlock = startingBlock || await this.db.getLastArbitrumBlockScanned();
+    const lastBlock = startingBlock || (await this.db.getLastArbitrumBlockScanned());
 
     return new Promise((resolve, reject) => {
       let timeout: any;
-      this.registrar.events.RecordUpdatedFor({
+      this.registrar.events
+        .RecordUpdatedFor({
           fromBlock: lastBlock,
         })
-        .on('data', mutexify(async(event: any) => {
-          if (timeout) {
-            clearTimeout(timeout);
-          }
-          await this.updateUser(event);
-          await this.db.updateLastArbitrumBlockScanned(event.blockNumber + 1);
-          timeout = setTimeout(resolve, 5000);
-        }))
+        .on(
+          'data',
+          mutexify(async (event: any) => {
+            if (timeout) {
+              clearTimeout(timeout);
+            }
+            await this.updateUser(event);
+            await this.db.updateLastArbitrumBlockScanned(event.blockNumber + 1);
+            timeout = setTimeout(resolve, 5000);
+          })
+        )
         .on('connected', () => {
           if (timeout) {
             clearTimeout(timeout);
           }
           timeout = setTimeout(resolve, 5000);
         })
-        .on('error', (err: any) => {throw new Error(err)})
+        .on('error', (err: any) => {
+          throw new Error(err);
+        });
     });
-
   }
 
   async updateUser(event: {
@@ -103,7 +108,7 @@ export class UserService extends GenericService {
     blockNumber: number;
     returnValues: {
       [key: string]: string;
-    }
+    };
   }): Promise<void> {
     const block = await this.getBlock(event.blockNumber);
     const pubkeyBytes = event.returnValues.value;
@@ -136,7 +141,7 @@ export class UserService extends GenericService {
       this.timeout = null;
     }
 
-    const lastBlock = startingBlock || await this.db.getLastArbitrumBlockScanned();
+    const lastBlock = startingBlock || (await this.db.getLastArbitrumBlockScanned());
     const block = await this.getBlock('latest');
 
     const toBlock = Math.min(block.number, lastBlock + 999999);
@@ -169,7 +174,7 @@ export class UserService extends GenericService {
     } else if (this.ws) {
       await this.subscribeRegistrar();
     }
-  }
+  };
 
   watchArbitrum = async (interval = DEFAULT_WATCH_INTERVAL) => {
     if (this.http) {
@@ -181,13 +186,13 @@ export class UserService extends GenericService {
     } else if (this.ws) {
       await this.subscribeRegistrar();
     }
-  }
+  };
 
-  async getUsers(limit?: number, offset?: string|number): Promise<User[]> {
+  async getUsers(limit?: number, offset?: string | number): Promise<User[]> {
     return this.db.getUsers(limit, offset);
   }
 
-  async getUser(address: string): Promise<User|null> {
+  async getUser(address: string): Promise<User | null> {
     return this.db.getUser(address);
   }
 
@@ -199,7 +204,7 @@ export class UserService extends GenericService {
     return this.db.getFollowings(address);
   }
 
-  async getMessagesByUser(address: string, limit?: number, offset?: number|string) {
+  async getMessagesByUser(address: string, limit?: number, offset?: number | string) {
     return this.db.getMessagesByUser(address, limit, offset);
   }
 }

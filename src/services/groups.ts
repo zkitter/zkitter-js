@@ -1,8 +1,8 @@
-import {GenericService} from "../utils/svc";
-import {GenericDBAdapterInterface} from "../adapters/db";
-import {ConstructorOptions} from "eventemitter2";
-import {GenericGroupAdapter, GroupEvents} from "../adapters/group";
-import {generateMerkleTree} from "@zk-kit/protocols";
+import { GenericService } from '../utils/svc';
+import { GenericDBAdapterInterface } from '../adapters/db';
+import { ConstructorOptions } from 'eventemitter2';
+import { GenericGroupAdapter, GroupEvents } from '../adapters/group';
+import { generateMerkleTree } from '@zk-kit/protocols';
 
 const DEFAULT_WATCH_INTERVAL = 1000 * 60 * 15;
 
@@ -17,9 +17,11 @@ export class GroupService extends GenericService {
 
   api = 'https://api.zkitter.com/v1/group_members';
 
-  constructor(props: ConstructorOptions & {
-    db: GenericDBAdapterInterface
-  }) {
+  constructor(
+    props: ConstructorOptions & {
+      db: GenericDBAdapterInterface;
+    }
+  ) {
     super(props);
     this.db = props.db;
     this.groups = {};
@@ -39,7 +41,7 @@ export class GroupService extends GenericService {
   async sync(groupId?: string) {
     if (groupId && this.groups[groupId]) {
       await this.groups[groupId].sync();
-      this.emit(GroupEvents.GroupSynced, groupId)
+      this.emit(GroupEvents.GroupSynced, groupId);
       return;
     }
 
@@ -74,7 +76,7 @@ export class GroupService extends GenericService {
 
     for (const group of Object.values(this.groups)) {
       await group.sync();
-      this.emit(GroupEvents.GroupSynced, group.groupId)
+      this.emit(GroupEvents.GroupSynced, group.groupId);
     }
   }
 
@@ -100,11 +102,7 @@ export class GroupService extends GenericService {
       let tree;
 
       if (protocol === 'custom') {
-        tree = generateMerkleTree(
-          depth,
-          BigInt(0),
-          await this.members(groupId),
-        );
+        tree = generateMerkleTree(depth, BigInt(0), await this.members(groupId));
       } else {
         tree = await this.groups[groupId].tree();
       }

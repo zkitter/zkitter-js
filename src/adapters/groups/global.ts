@@ -1,7 +1,7 @@
 import { generateMerkleTree } from '@zk-kit/protocols';
-import {GenericGroupAdapter, GroupEvents} from "../group";
-import {GenericDBAdapterInterface} from "../db";
-import EventEmitter2, {ConstructorOptions} from "eventemitter2";
+import { GenericGroupAdapter, GroupEvents } from '../group';
+import { GenericDBAdapterInterface } from '../db';
+import EventEmitter2, { ConstructorOptions } from 'eventemitter2';
 
 export class GlobalGroup extends EventEmitter2 implements GenericGroupAdapter {
   db: GenericDBAdapterInterface;
@@ -10,9 +10,11 @@ export class GlobalGroup extends EventEmitter2 implements GenericGroupAdapter {
 
   api = 'https://api.zkitter.com/v1/group_members/zksocial_all';
 
-  constructor(opts: {
-    db: GenericDBAdapterInterface,
-  } & ConstructorOptions) {
+  constructor(
+    opts: {
+      db: GenericDBAdapterInterface;
+    } & ConstructorOptions
+  ) {
     super(opts);
     this.db = opts.db;
   }
@@ -41,16 +43,12 @@ export class GlobalGroup extends EventEmitter2 implements GenericGroupAdapter {
   }
 
   async tree(depth = 15) {
-    const tree = generateMerkleTree(
-      depth,
-      BigInt(0),
-      await this.members(),
-    );
+    const tree = generateMerkleTree(depth, BigInt(0), await this.members());
 
     return tree;
   }
 
-  async members(limit?: number, offset?: number|string): Promise<string[]> {
+  async members(limit?: number, offset?: number | string): Promise<string[]> {
     return this.db.getGroupMembers(this.groupId, limit, offset);
   }
 

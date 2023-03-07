@@ -1,5 +1,5 @@
-import { utf8ToBytes, bytesToUtf8 } from "@waku/byte-utils";
-import * as proto from "../proto/message";
+import { utf8ToBytes, bytesToUtf8 } from '@waku/byte-utils';
+import * as proto from '../proto/message';
 
 /**
  * ChatMessage is used by the various show case waku apps that demonstrates
@@ -14,11 +14,7 @@ export class Message {
   /**
    * Create Chat Message with a utf-8 string as payload.
    */
-  static fromUtf8String(
-    data: string,
-    proof: string,
-    timestamp?: Date,
-): Message {
+  static fromUtf8String(data: string, proof: string, timestamp?: Date): Message {
     const timestampNumber = BigInt(Math.floor((timestamp || new Date()).valueOf() / 1000));
     const dataBuf = utf8ToBytes(data);
     const proofBuf = utf8ToBytes(proof);
@@ -53,7 +49,7 @@ export class Message {
 
   get data(): string {
     if (!this.proto.data) {
-      return "";
+      return '';
     }
 
     return bytesToUtf8(this.proto.data);
@@ -61,7 +57,7 @@ export class Message {
 
   get proof(): string {
     if (!this.proto.proof) {
-      return "";
+      return '';
     }
 
     return bytesToUtf8(this.proto.proof);

@@ -40,7 +40,7 @@ export class Message {
     }
   }
 
-  static fromHex(hex: string): Message|undefined {
+  static fromHex(hex: string): Message | undefined {
     let d = hex;
     const [type] = decodeString(d, 2, cb);
 
