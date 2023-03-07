@@ -1,6 +1,6 @@
-import {Command} from "commander";
-import {initZkitter} from "../utils/cli";
-import {ZkitterEvents} from "../services";
+import { Command } from 'commander';
+import { ZkitterEvents } from '../services';
+import { initZkitter } from '../utils/cli';
 
 export function fetch(program: Command) {
   program
@@ -17,11 +17,11 @@ export function fetch(program: Command) {
       let count = 0;
       let oldCount = 0;
 
-      zkitter.on(ZkitterEvents.AlreadyExist, msg => {
+      zkitter.on(ZkitterEvents.AlreadyExist, () => {
         oldCount++;
       });
 
-      zkitter.on(ZkitterEvents.NewMessageCreated, msg => {
+      zkitter.on(ZkitterEvents.NewMessageCreated, () => {
         count++;
       });
 

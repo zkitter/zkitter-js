@@ -1,6 +1,6 @@
-import {Command} from "commander";
-import {initZkitter} from "../utils/cli";
-import {Zkitter} from "../services";
+import { Command } from 'commander';
+import { Zkitter } from '../services';
+import { initZkitter } from '../utils/cli';
 
 export function list(program: Command) {
   program
@@ -8,7 +8,7 @@ export function list(program: Command) {
     .description('list all groups or users')
     .option('-u, --users', 'list all users')
     .option('-g, --groups', 'list all groups')
-    .action(async (options) => {
+    .action(async options => {
       const zkitter = await initZkitter(true);
 
       if (!zkitter) return;
@@ -26,7 +26,7 @@ export async function handleList(zkitter: Zkitter, user: boolean, group: boolean
       console.log(u.address);
     }
   } else if (group) {
-    const {groups} = zkitter.services.groups;
+    const { groups } = zkitter.services.groups;
     for (const g of Object.values(groups)) {
       console.log(g.groupId);
     }

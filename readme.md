@@ -2,15 +2,16 @@
 
 Javascript implementation of a standalone Zkitter node
 
-
-
 ## CLI Usage
+
 To install CLI:
+
 ```sh
 npm i -g zkitter-js
 ```
 
 To sync:
+
 ```sh
 # either https or wss provider will work
 zkitter init -a wss://arb-mainnet.g.alchemy.com/v2/[api-key]
@@ -19,6 +20,7 @@ zkitter timeline --limit=5
 ```
 
 CLI options:
+
 ```
 Options:
   -V, --version       output the version number
@@ -38,8 +40,9 @@ Commands:
 ```
 
 ## NPM Usage
+
 ```ts
-import {Zkitter} from "zkitter-js";
+import { Zkitter } from 'zkitter-js';
 const zkitter = await Zkitter.initialize({
   arbitrumHttpProvider: 'https://...',
 });
@@ -60,9 +63,9 @@ await zkitter.subscribe();
 ## Development
 
 ```sh
-# node v16 
+# node v16
 npm install
 
-# build a dev cli to build/cli.js 
+# build a dev cli to build/cli.js
 npm run dev
 ```

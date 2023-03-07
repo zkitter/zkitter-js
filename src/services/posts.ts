@@ -1,16 +1,18 @@
-import {GenericService} from "../utils/svc";
-import {GenericDBAdapterInterface} from "../adapters/db";
-import {Post} from "../utils/message";
-import {PostMeta} from "../models/postmeta";
-import {ConstructorOptions} from "eventemitter2";
-import {Proof} from "../models/proof";
+import { ConstructorOptions } from 'eventemitter2';
+import { GenericDBAdapterInterface } from '../adapters/db';
+import { PostMeta } from '../models/postmeta';
+import { Proof } from '../models/proof';
+import { Post } from '../utils/message';
+import { GenericService } from '../utils/svc';
 
 export class PostService extends GenericService {
   db: GenericDBAdapterInterface;
 
-  constructor(props: ConstructorOptions & {
-    db: GenericDBAdapterInterface
-  }) {
+  constructor(
+    props: ConstructorOptions & {
+      db: GenericDBAdapterInterface;
+    }
+  ) {
     super(props);
     this.db = props.db;
   }
@@ -27,7 +29,7 @@ export class PostService extends GenericService {
     return this.db.getPost(hash);
   }
 
-  async getPosts(limit?: number, offset?: number|string) {
+  async getPosts(limit?: number, offset?: number | string) {
     return this.db.getPosts(limit, offset);
   }
 
@@ -37,20 +39,20 @@ export class PostService extends GenericService {
       groups: { [groupId: string]: true };
     },
     limit = -1,
-    offset?: number|string
+    offset?: number | string
   ): Promise<Post[]> {
     return this.db.getHomefeed(filter, limit, offset);
   }
 
-  async getUserPosts(address: string, limit?: number, offset?: number|string) {
+  async getUserPosts(address: string, limit?: number, offset?: number | string) {
     return this.db.getUserPosts(address, limit, offset);
   }
 
-  async getReplies(hash: string, limit?: number, offset?: number|string) {
+  async getReplies(hash: string, limit?: number, offset?: number | string) {
     return this.db.getReplies(hash, limit, offset);
   }
 
-  async getReposts(hash: string, limit?: number, offset?: number|string) {
+  async getReposts(hash: string, limit?: number, offset?: number | string) {
     return this.db.getReposts(hash, limit, offset);
   }
 }

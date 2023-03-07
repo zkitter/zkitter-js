@@ -1,4 +1,4 @@
-import {Mutex} from "async-mutex";
+import { Mutex } from 'async-mutex';
 
 /**
  * return a function that invoke fn in a mutex
@@ -6,13 +6,13 @@ import {Mutex} from "async-mutex";
  * @param fn
  * @param mutex
  */
-const mutexify = (fn: Function, mutex?: Mutex) => {
+const mutexify = (fn: (...args: unknown[]) => unknown, mutex?: Mutex) => {
   const oldFn = fn;
   const mux = mutex || new Mutex();
 
-  return (...args: any[]) => {
+  return (...args: unknown[]) => {
     return mux.runExclusive(oldFn.bind(this, ...args));
-  }
-}
+  };
+};
 
 export default mutexify;

@@ -1,4 +1,12 @@
-export type UserMetaKey = 'nickname' | 'coverImage' | 'profileImage' | 'website' | 'twitterVerification' | 'bio' | 'ecdh' | 'idCommitment';
+export type UserMetaKey =
+  | 'nickname'
+  | 'coverImage'
+  | 'profileImage'
+  | 'website'
+  | 'twitterVerification'
+  | 'bio'
+  | 'ecdh'
+  | 'idCommitment';
 
 export type UserMeta = {
   nickname: string;
@@ -18,19 +26,18 @@ export type UserMeta = {
 };
 
 export const EmptyUserMeta = (): UserMeta => ({
-  nickname: '',
-  coverImage: '',
-  profileImage: '',
-  website: '',
-  twitterVerification: '',
   bio: '',
-  group: false,
-  ecdh: '',
-  idCommitment: '',
-  followers: 0,
-  following: 0,
   blockers: 0,
   blocking: 0,
+  coverImage: '',
+  ecdh: '',
+  followers: 0,
+  following: 0,
+  group: false,
+  idCommitment: '',
+  nickname: '',
   posts: 0,
+  profileImage: '',
+  twitterVerification: '',
+  website: '',
 });
-

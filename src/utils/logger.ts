@@ -1,12 +1,13 @@
-import winston from 'winston';
-import chalk from "chalk";
+/* eslint-disable no-console */
+import chalk from 'chalk';
+import * as winston from 'winston';
 
 const format = winston.format;
 const { combine, timestamp } = format;
 
 const logger = winston.createLogger({
-  level: 'info',
   format: combine(timestamp(), format.colorize(), format.json()),
+  level: 'info',
   transports: [
     new winston.transports.File({
       filename: 'error.log',
@@ -21,13 +22,11 @@ const logger = winston.createLogger({
 if (process.env.NODE_ENV !== 'production') {
   logger.add(
     new winston.transports.Console({
-      level: 'error',
       format: winston.format.simple(),
+      level: 'error',
     })
   );
 }
-
-export default logger;
 
 export function error(msg: string) {
   console.log(chalk.red(msg));
@@ -44,3 +43,5 @@ export function success(msg: string) {
 export function debug(msg: string) {
   console.log(chalk.gray(msg));
 }
+
+export default logger;

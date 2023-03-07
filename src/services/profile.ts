@@ -1,13 +1,13 @@
-import {GenericService} from "../utils/svc";
-import {GenericDBAdapterInterface} from "../adapters/db";
-import {Profile} from "../utils/message";
-import {ConstructorOptions} from "eventemitter2";
-import {Proof} from "../models/proof";
+import { ConstructorOptions } from 'eventemitter2';
+import { GenericDBAdapterInterface } from '../adapters/db';
+import { Proof } from '../models/proof';
+import { Profile } from '../utils/message';
+import { GenericService } from '../utils/svc';
 
 export class ProfileService extends GenericService {
   db: GenericDBAdapterInterface;
 
-  constructor(props: ConstructorOptions & {db: GenericDBAdapterInterface}) {
+  constructor(props: ConstructorOptions & { db: GenericDBAdapterInterface }) {
     super(props);
     this.db = props.db;
   }

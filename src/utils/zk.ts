@@ -1,9 +1,13 @@
-import {ZkIdentity} from "@zk-kit/identity";
-import {genExternalNullifier, RLN, RLNFullProof} from "@zk-kit/protocols";
-import {sha256} from "./crypto";
-import rlnVkey from "../../static/rln_vkey.json";
+import { ZkIdentity } from '@zk-kit/identity';
+import { genExternalNullifier, MerkleProof, RLN, RLNFullProof } from '@zk-kit/protocols';
+import rlnVkey from '../../static/rln_vkey.json';
+import { sha256 } from './crypto';
 
-export const createRLNProof = async (hash: string, zkIdentity: ZkIdentity, merklePath: any) => {
+export const createRLNProof = async (
+  hash: string,
+  zkIdentity: ZkIdentity,
+  merklePath: MerkleProof
+) => {
   const identitySecretHash = zkIdentity.getSecretHash();
   const epoch = Date.now().toString();
   const externalNullifier = genExternalNullifier(epoch);
@@ -15,7 +19,7 @@ export const createRLNProof = async (hash: string, zkIdentity: ZkIdentity, merkl
     merklePath!,
     externalNullifier,
     signal,
-    BigInt('0x' + rlnIdentifier),
+    BigInt('0x' + rlnIdentifier)
   );
 
   const wasmResp = await fetch(`https://api.zkitter.com/circuits/rln/wasm`);
@@ -23,9 +27,9 @@ export const createRLNProof = async (hash: string, zkIdentity: ZkIdentity, merkl
   const zkeyResp = await fetch(`https://api.zkitter.com/circuits/rln/zkey`);
   const zkeybuf = Buffer.from(await zkeyResp.arrayBuffer());
 
-  // @ts-ignore
+  // @ts-expect-error todo: fix this
   return RLN.genProof(witness, wasmbuf, zkeybuf);
-}
+};
 
 export const verifyRLNProof = async (hash: string, group: string | null, proof: RLNFullProof) => {
   const verified = await RLN.verifyProof(rlnVkey as any, proof);
@@ -44,4 +48,4 @@ export const verifyRLNProof = async (hash: string, group: string | null, proof: 
   }
 
   return true;
-}
+};
