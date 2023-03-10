@@ -1,11 +1,17 @@
-import { GenericService } from '../utils/svc';
+import { ZkIdentity } from '@zk-kit/identity';
+import { ConstructorOptions } from 'eventemitter2';
 import Web3 from 'web3';
 import { Contract } from 'web3-eth-contract';
+import { GenericDBAdapterInterface } from '../adapters/db';
+import { GenericGroupAdapter } from '../adapters/group';
+import { GlobalGroup } from '../adapters/groups/global';
+import { InterepGroup } from '../adapters/groups/interep';
+import { TazGroup } from '../adapters/groups/taz';
 import { AlreadyExistError, LevelDBAdapter } from '../adapters/leveldb';
-import { UserService } from './users';
+import { PostMeta } from '../models/postmeta';
+import { Proof } from '../models/proof';
 import { User } from '../models/user';
-import { PubsubService } from './pubsub';
-import { PostService } from './posts';
+import { UserMeta } from '../models/usermeta';
 import {
   Connection,
   Message,
@@ -15,20 +21,14 @@ import {
   Post,
   Profile,
 } from '../utils/message';
-import { ModerationService } from './moderations';
+import { GenericService } from '../utils/svc';
 import { ConnectionService } from './connections';
-import { UserMeta } from '../models/usermeta';
-import { ProfileService } from './profile';
-import { GenericDBAdapterInterface } from '../adapters/db';
-import { PostMeta } from '../models/postmeta';
-import { ConstructorOptions } from 'eventemitter2';
-import { Proof } from '../models/proof';
 import { GroupService } from './groups';
-import { GenericGroupAdapter } from '../adapters/group';
-import { TazGroup } from '../adapters/groups/taz';
-import { ZkIdentity } from '@zk-kit/identity';
-import { InterepGroup } from '../adapters/groups/interep';
-import { GlobalGroup } from '../adapters/groups/global';
+import { ModerationService } from './moderations';
+import { PostService } from './posts';
+import { ProfileService } from './profile';
+import { PubsubService } from './pubsub';
+import { UserService } from './users';
 
 export enum ZkitterEvents {
   ArbitrumSynced = 'Users.ArbitrumSynced',
@@ -78,8 +78,8 @@ export class Zkitter extends GenericService {
   }): Promise<Zkitter> {
     const db = options?.db || (await LevelDBAdapter.initialize());
     const users = new UserService({
-      db,
       arbitrumProvider: options?.arbitrumProvider || 'https://arb1.arbitrum.io/rpc',
+      db,
     });
     const posts = new PostService({ db });
     const moderations = new ModerationService({ db });
@@ -115,15 +115,15 @@ export class Zkitter extends GenericService {
     }
 
     return new Zkitter({
-      db,
-      users,
-      pubsub,
-      posts,
-      moderations,
       connections,
-      profile,
+      db,
       groups,
       historyAPI: options?.historyAPI,
+      moderations,
+      posts,
+      profile,
+      pubsub,
+      users,
     });
   }
 
@@ -145,20 +145,20 @@ export class Zkitter extends GenericService {
     this.unsubscribe = null;
     this.subscriptions = {
       all: false,
-      users: {},
       groups: {},
       threads: {},
+      users: {},
     };
     this.historyAPI = opts.historyAPI || 'https://api.zkitter.com/v1/history';
 
     this.services = {
+      connections: opts.connections,
+      groups: opts.groups,
+      moderations: opts.moderations,
+      posts: opts.posts,
+      profile: opts.profile,
       pubsub: opts.pubsub,
       users: opts.users,
-      posts: opts.posts,
-      moderations: opts.moderations,
-      connections: opts.connections,
-      profile: opts.profile,
-      groups: opts.groups,
     };
 
     for (const service of Object.values(this.services)) {
@@ -255,13 +255,13 @@ export class Zkitter extends GenericService {
       await this.unsubscribe();
     }
 
-    const { all, threads, users, groups } = this.subscriptions;
+    const { all, groups, threads, users } = this.subscriptions;
     const subs = all
       ? null
       : {
+          groups: Object.keys(groups),
           threads: Object.keys(threads),
           users: Object.keys(users),
-          groups: Object.keys(groups),
         };
 
     await this.query(subs);
@@ -427,6 +427,7 @@ export class Zkitter extends GenericService {
     const resp = await fetch(this.historyAPI + query);
     const json = await resp.json();
 
+    // eslint-disable-next-line no-async-promise-executor
     return new Promise(async (resolve, reject) => {
       if (json.error) return reject(json.payload);
 
@@ -439,47 +440,47 @@ export class Zkitter extends GenericService {
           switch (msg.type) {
             case MessageType.Post:
               message = new Post({
-                type: msg.type,
-                subtype: msg.subtype,
-                payload: msg.payload,
                 createdAt: new Date(msg.createdAt),
                 creator,
+                payload: msg.payload,
+                subtype: msg.subtype,
+                type: msg.type,
               });
               break;
             case MessageType.Moderation:
               message = new Moderation({
-                type: msg.type,
-                subtype: msg.subtype,
-                payload: msg.payload,
                 createdAt: new Date(msg.createdAt),
                 creator,
+                payload: msg.payload,
+                subtype: msg.subtype,
+                type: msg.type,
               });
               break;
             case MessageType.Connection:
               message = new Connection({
-                type: msg.type,
-                subtype: msg.subtype,
-                payload: msg.payload,
                 createdAt: new Date(msg.createdAt),
                 creator,
+                payload: msg.payload,
+                subtype: msg.subtype,
+                type: msg.type,
               });
               break;
             case MessageType.Profile:
               message = new Profile({
-                type: msg.type,
-                subtype: msg.subtype,
-                payload: msg.payload,
                 createdAt: new Date(msg.createdAt),
                 creator,
+                payload: msg.payload,
+                subtype: msg.subtype,
+                type: msg.type,
               });
               break;
           }
 
           if (message) {
             await this.insert(message, {
-              type: '',
-              proof: null,
               group: msg.group,
+              proof: null,
+              type: '',
             });
           }
         }
@@ -516,7 +517,7 @@ export class Zkitter extends GenericService {
     hash: string;
     address?: string;
     privateKey?: string;
-    zkIdentity?: ZkIdentity,
+    zkIdentity?: ZkIdentity;
     groupId?: string;
   }): Promise<Proof> {
     return this.services.pubsub.createProof(opts);

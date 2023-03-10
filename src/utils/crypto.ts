@@ -1,7 +1,7 @@
-import EC from "elliptic";
-import crypto from "crypto";
+import crypto from 'crypto';
 import CryptoJS from 'crypto-js';
-import {base64ToArrayBuffer} from "./encoding";
+import EC from 'elliptic';
+import { base64ToArrayBuffer } from './encoding';
 
 export const signWithP256 = (base64PrivateKey: string, data: string) => {
   const buff = base64ToArrayBuffer(base64PrivateKey);
@@ -26,9 +26,7 @@ export function verifySignatureP256(pubkey: string, data: string, signature: str
   );
 }
 export const sha256 = async (data: string): Promise<string> => {
-  return crypto.createHash('sha256')
-    .update(data)
-    .digest('hex');
+  return crypto.createHash('sha256').update(data).digest('hex');
 };
 
 export const deriveSharedSecret = (receiverPubkey: string, senderPrivateKey: string): string => {

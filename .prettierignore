@@ -2,10 +2,13 @@ node_modules
 package-lock.json
 pnpm-lock.yaml
 yarn.lock
+test.js
 
 # TS build dir
 build
 dist
+bin
+webdev
 
 # Jest
 coverage

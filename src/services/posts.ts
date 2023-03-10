@@ -1,9 +1,9 @@
-import { GenericService } from '../utils/svc';
-import { GenericDBAdapterInterface } from '../adapters/db';
-import { Post } from '../utils/message';
-import { PostMeta } from '../models/postmeta';
 import { ConstructorOptions } from 'eventemitter2';
+import { GenericDBAdapterInterface } from '../adapters/db';
+import { PostMeta } from '../models/postmeta';
 import { Proof } from '../models/proof';
+import { Post } from '../utils/message';
+import { GenericService } from '../utils/svc';
 
 export class PostService extends GenericService {
   db: GenericDBAdapterInterface;

@@ -1,7 +1,11 @@
-import { GenericService } from '../utils/svc';
+import { Strategy, ZkIdentity } from '@zk-kit/identity';
+import { ConstructorOptions } from 'eventemitter2';
+import { createDecoder, createEncoder, waitForRemotePeer } from '@waku/core';
 import { createLightNode } from '@waku/create';
 import { LightNode, Protocols } from '@waku/interfaces';
-import { createDecoder, createEncoder, waitForRemotePeer } from '@waku/core';
+import { Message } from '../models/message';
+import { Proof, ProofType } from '../models/proof';
+import { sha256, signWithP256, verifySignatureP256 } from '../utils/crypto';
 import {
   Message as ZkitterMessage,
   MessageType,
@@ -11,14 +15,10 @@ import {
   Post,
   PostMessageSubType,
 } from '../utils/message';
-import { Message } from '../models/message';
-import { Proof, ProofType } from '../models/proof';
-import { UserService } from './users';
-import { sha256, signWithP256, verifySignatureP256 } from '../utils/crypto';
-import { ConstructorOptions } from 'eventemitter2';
-import { Strategy, ZkIdentity } from '@zk-kit/identity';
-import { GroupService } from './groups';
+import { GenericService } from '../utils/svc';
 import { createRLNProof, verifyRLNProof } from '../utils/zk';
+import { GroupService } from './groups';
+import { UserService } from './users';
 
 const WakuFormatVersion = '1.0.0';
 
@@ -42,7 +42,7 @@ export class PubsubService extends GenericService {
       await waku.start();
       await waitForRemotePeer(waku, [Protocols.Store, Protocols.Filter, Protocols.LightPush]);
     }
-    return new PubsubService({ waku, users, groups, topicPrefix });
+    return new PubsubService({ groups, topicPrefix, users, waku });
   }
 
   constructor(
@@ -96,7 +96,7 @@ export class PubsubService extends GenericService {
         const user = await this.users.getUser(message.creator);
         return !!user?.pubkey && verifySignatureP256(user.pubkey, hash, proof.signature);
       case ProofType.rln:
-        const { proof: fullProof, groupId } = proof;
+        const { groupId, proof: fullProof } = proof;
         if (groupId) {
           await this.groups.sync(groupId);
         }
@@ -124,7 +124,7 @@ export class PubsubService extends GenericService {
     zkIdentity?: ZkIdentity;
     groupId?: string;
   }): Promise<Proof> {
-    const { hash, address, privateKey, zkIdentity, groupId } = opts;
+    const { address, groupId, hash, privateKey, zkIdentity } = opts;
     let identity = zkIdentity;
 
     if (!address && privateKey) {
@@ -143,7 +143,7 @@ export class PubsubService extends GenericService {
       const idCommitmentHex = '0x' + identityCommitment.toString(16);
       const merklePath = await this.groups.getMerklePath(idCommitmentHex, groupId);
       const proof = await createRLNProof(hash, identity, merklePath);
-      return { proof, type: ProofType.rln, groupId: groupId || '' };
+      return { groupId: groupId || '', proof, type: ProofType.rln };
     }
 
     throw new Error('invalid proof inputs');
@@ -158,12 +158,12 @@ export class PubsubService extends GenericService {
     groupId?: string;
   }) {
     const message = new Moderation({
-      type: MessageType.Moderation,
-      subtype: options.subtype,
       creator: options.creator,
       payload: {
         reference: options.reference,
       },
+      subtype: options.subtype,
+      type: MessageType.Moderation,
     });
     const hash = message.hash();
     if (options.privateKey) {
@@ -179,9 +179,9 @@ export class PubsubService extends GenericService {
       const merklePath = await this.groups.getMerklePath(idCommitmentHex, options.groupId);
       const proof = await createRLNProof(hash, zkIdentity, merklePath);
       await this.publish(message, {
+        groupId: options.groupId || '',
         proof,
         type: ProofType.rln,
-        groupId: options.groupId || '',
       });
     } else {
       throw new Error('no private key or zk identity detected.');
@@ -198,13 +198,13 @@ export class PubsubService extends GenericService {
     global?: boolean;
   }) {
     const message = new Post({
-      type: MessageType.Post,
-      subtype: options.reference ? PostMessageSubType.Reply : PostMessageSubType.Default,
       creator: options.creator,
       payload: {
-        reference: options.reference,
         content: options.content,
+        reference: options.reference,
       },
+      subtype: options.reference ? PostMessageSubType.Reply : PostMessageSubType.Default,
+      type: MessageType.Post,
     });
     const hash = message.hash();
     const { messageId } = message.toJSON();
@@ -222,9 +222,9 @@ export class PubsubService extends GenericService {
       const merklePath = await this.groups.getMerklePath(idCommitmentHex, options.groupId);
       const proof = await createRLNProof(hash, zkIdentity, merklePath);
       await this.publish(message, {
+        groupId: options.groupId || '',
         proof,
         type: ProofType.rln,
-        groupId: options.groupId || '',
       });
     } else {
       throw new Error('no private key or zk identity detected.');
@@ -233,9 +233,9 @@ export class PubsubService extends GenericService {
     if (options.global) {
       await this.moderate({
         creator: options.creator,
-        subtype: ModerationMessageSubType.Global,
-        reference: messageId,
         privateKey: options.privateKey,
+        reference: messageId,
+        subtype: ModerationMessageSubType.Global,
       });
     }
   }
@@ -245,16 +245,16 @@ export class PubsubService extends GenericService {
       const payload = await this.covertMessaegToWakuPayload(message, proof);
 
       await this.waku.lightPush.push(createEncoder(globalMessageTopic(this.topicPrefix)), {
-        timestamp: message.createdAt,
         payload,
+        timestamp: message.createdAt,
       });
 
       if (proof.type === ProofType.signature) {
         const creator = message.creator;
         const encoder = createEncoder(userMessageTopic(creator, this.topicPrefix));
         await this.waku.lightPush.push(encoder, {
-          timestamp: message.createdAt,
           payload,
+          timestamp: message.createdAt,
         });
       } else if (proof.type === ProofType.rln) {
         const groupId = await this.groups.getGroupByRoot(
@@ -262,8 +262,8 @@ export class PubsubService extends GenericService {
         );
         const encoder = createEncoder(groupMessageTopic(groupId!, this.topicPrefix));
         await this.waku.lightPush.push(encoder, {
-          timestamp: message.createdAt,
           payload,
+          timestamp: message.createdAt,
         });
       }
 
@@ -273,16 +273,16 @@ export class PubsubService extends GenericService {
           ? parseMessageId(post.payload.reference).hash
           : post.hash();
         await this.waku.lightPush.push(createEncoder(threadTopic(hash, this.topicPrefix)), {
-          timestamp: message.createdAt,
           payload,
+          timestamp: message.createdAt,
         });
       } else if (message.type === MessageType.Moderation) {
         const mod = message as Moderation;
         if (mod.payload.reference) {
           const { hash } = parseMessageId(mod.payload.reference);
           await this.waku.lightPush.push(createEncoder(threadTopic(hash, this.topicPrefix)), {
-            timestamp: message.createdAt,
             payload,
+            timestamp: message.createdAt,
           });
         }
       }
@@ -299,7 +299,7 @@ export class PubsubService extends GenericService {
     for await (const messagesPromises of this.waku.store.queryGenerator([decoder])) {
       const wakuMessages = await Promise.all(messagesPromises);
 
-      for (let message of wakuMessages.filter(msg => !!msg)) {
+      for (const message of wakuMessages.filter(msg => !!msg)) {
         if (message?.payload) {
           const decoded = Message.decode(message.payload);
           1;
@@ -319,7 +319,7 @@ export class PubsubService extends GenericService {
     for await (const messagesPromises of this.waku.store.queryGenerator([decoder])) {
       const wakuMessages = await Promise.all(messagesPromises);
 
-      for (let message of wakuMessages.filter(msg => !!msg)) {
+      for (const message of wakuMessages.filter(msg => !!msg)) {
         if (message?.payload) {
           const decoded = Message.decode(message.payload);
           1;
@@ -339,7 +339,7 @@ export class PubsubService extends GenericService {
     for await (const messagesPromises of this.waku.store.queryGenerator([decoder])) {
       const wakuMessages = await Promise.all(messagesPromises);
 
-      for (let message of wakuMessages.filter(msg => !!msg)) {
+      for (const message of wakuMessages.filter(msg => !!msg)) {
         if (message?.payload) {
           const decoded = Message.decode(message.payload);
           1;
@@ -359,7 +359,7 @@ export class PubsubService extends GenericService {
     for await (const messagesPromises of this.waku.store.queryGenerator([decoder])) {
       const wakuMessages = await Promise.all(messagesPromises);
 
-      for (let message of wakuMessages.filter(msg => !!msg)) {
+      for (const message of wakuMessages.filter(msg => !!msg)) {
         if (message?.payload) {
           const decoded = Message.decode(message.payload);
           1;
@@ -385,7 +385,7 @@ export class PubsubService extends GenericService {
     cb: (message: ZkitterMessage, proof: Proof) => Promise<void>
   ) {
     const global = !options;
-    const { groups = [], users = [], threads = [] } = options || {};
+    const { groups = [], threads = [], users = [] } = options || {};
     const topics = [
       ...groups.map(g => groupMessageTopic(g, this.topicPrefix)),
       ...users.map(u => userMessageTopic(u, this.topicPrefix)),
@@ -400,7 +400,7 @@ export class PubsubService extends GenericService {
     for await (const messagesPromises of this.waku.store.queryGenerator(decoders)) {
       const wakuMessages = await Promise.all(messagesPromises);
 
-      for (let message of wakuMessages.filter(msg => !!msg)) {
+      for (const message of wakuMessages.filter(msg => !!msg)) {
         if (message?.payload) {
           const decoded = Message.decode(message.payload);
           1;
@@ -485,7 +485,7 @@ export class PubsubService extends GenericService {
     cb: (message: ZkitterMessage, proof: Proof) => Promise<void>
   ) {
     const global = !options;
-    const { groups = [], users = [], threads = [] } = options || {};
+    const { groups = [], threads = [], users = [] } = options || {};
     const topics = [
       ...groups.map(g => groupMessageTopic(g, this.topicPrefix)),
       ...users.map(u => userMessageTopic(u, this.topicPrefix)),

@@ -32,43 +32,41 @@ const rules = [
 ];
 
 module.exports = [
-    {
-        mode: isProd ? 'production' : 'development',
-        entry: {
-            'index': path.join(__dirname, 'src', 'index.ts'),
-        },
-        target: 'node',
-        devtool: 'source-map',
-        resolve: {
-            extensions: ['.ts', '.js', '.png', '.svg', '.wasm'],
-        },
-        node: {
-            __dirname: true,
-        },
-        module: {
-            rules: [...rules],
-        },
-        output: {
-            path: __dirname + '/dist',
-            filename: `[name].js`,
-            libraryTarget: 'umd',
-            globalObject: 'this',
-            umdNamedDefine: true,
-            library: {
-                name: "zkitter-js",
-                type: "umd"
-            },
-        },
-        // optimization: {
-        //     minimize: isProd,
-        //     minimizer: [new UglifyJsPlugin({
-        //         // minimize: true,
-        //         sourceMap: true,
-        //         include: /\.min\.js$/,
-        //     })]
-        // },
-        plugins: [
-            envPlugin,
-        ],
+  {
+    mode: isProd ? 'production' : 'development',
+    entry: {
+      index: path.join(__dirname, 'src', 'index.ts'),
     },
+    target: 'node',
+    devtool: 'source-map',
+    resolve: {
+      extensions: ['.ts', '.js', '.png', '.svg', '.wasm'],
+    },
+    node: {
+      __dirname: true,
+    },
+    module: {
+      rules: [...rules],
+    },
+    output: {
+      path: __dirname + '/dist',
+      filename: `[name].js`,
+      libraryTarget: 'umd',
+      globalObject: 'this',
+      umdNamedDefine: true,
+      library: {
+        name: 'zkitter-js',
+        type: 'umd',
+      },
+    },
+    // optimization: {
+    //     minimize: isProd,
+    //     minimizer: [new UglifyJsPlugin({
+    //         // minimize: true,
+    //         sourceMap: true,
+    //         include: /\.min\.js$/,
+    //     })]
+    // },
+    plugins: [envPlugin],
+  },
 ];

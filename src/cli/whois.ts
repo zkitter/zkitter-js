@@ -1,11 +1,11 @@
-import { Command } from 'commander';
-import { initZkitter } from '../utils/cli';
 import chalk from 'chalk';
-import { error } from '../utils/logger';
+import { Command } from 'commander';
 import moment from 'moment';
 import { Zkitter } from '../services';
+import { initZkitter } from '../utils/cli';
+import { error } from '../utils/logger';
 
-const { yellowBright, red, gray, blue, blueBright, magenta, cyan, yellow, green, greenBright } =
+const { blue, blueBright, cyan, gray, green, greenBright, magenta, red, yellow, yellowBright } =
   chalk;
 
 export function whois(program: Command) {

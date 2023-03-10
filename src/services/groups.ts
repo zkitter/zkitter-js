@@ -1,8 +1,8 @@
-import { GenericService } from '../utils/svc';
-import { GenericDBAdapterInterface } from '../adapters/db';
-import { ConstructorOptions } from 'eventemitter2';
-import { GenericGroupAdapter, GroupEvents } from '../adapters/group';
 import { generateMerkleTree } from '@zk-kit/protocols';
+import { ConstructorOptions } from 'eventemitter2';
+import { GenericDBAdapterInterface } from '../adapters/db';
+import { GenericGroupAdapter, GroupEvents } from '../adapters/group';
+import { GenericService } from '../utils/svc';
 
 const DEFAULT_WATCH_INTERVAL = 1000 * 60 * 15;
 
@@ -61,8 +61,8 @@ export class GroupService extends GenericService {
               tree.insert(BigInt(idCommitment));
               const member = {
                 idCommitment,
-                newRoot: tree.root.toString(),
                 index: i,
+                newRoot: tree.root.toString(),
               };
               await this.db.insertGroupMember(groupId, member);
               this.emit(GroupEvents.NewGroupMemberCreated, member, groupId);

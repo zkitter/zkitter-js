@@ -1,48 +1,41 @@
-export { createRLNProof } from './utils/zk';
-
-export {
-  generateIdentity,
-  generateECDHWithP256,
-  generateZKIdentityWithP256,
-  generateECDHKeyPairFromhex,
-  generateZkIdentityFromHex,
-} from "./utils/identity";
-
-export { Zkitter } from './services';
-export { LevelDBAdapter } from './adapters/leveldb';
-export type { GenericGroupAdapter } from './adapters/group';
 export type { GenericDBAdapterInterface } from './adapters/db';
 
-export {
-  Post,
-  Moderation,
-  Profile,
-  Connection,
-  Chat,
-  Message,
-} from "./utils/message";
+export type { GenericGroupAdapter } from './adapters/group';
 
-export type {
-  PostMessageSubType,
-  PostJSON,
-  ModerationMessageSubType,
-  ModerationJSON,
-  ProfileMessageSubType,
-  ProfileJSON,
-  ConnectionMessageSubType,
-  ConnectionJSON,
-  ChatMessageSubType,
-  ChatJSON,
-  MessageType,
-} from './utils/message';
-
-export * as Utils from './utils/encoding';
-export * as Crypto from './utils/crypto';
-
+export { LevelDBAdapter } from './adapters/leveldb';
+export type { GroupID, GroupMember } from './models/group';
 export type { PostMeta } from './models/postmeta';
-export type { UserMeta } from './models/usermeta';
 export { EmptyPostMeta } from './models/postmeta';
-export { EmptyUserMeta } from './models/usermeta';
-export type { GroupMember, GroupID } from './models/group';
-export type { User } from './models/user';
+
 export type { Proof, ProofType, RLNProof, SignatureProof } from './models/proof';
+
+export type { User } from './models/user';
+
+export type { UserMeta } from './models/usermeta';
+export { EmptyUserMeta } from './models/usermeta';
+
+export { Zkitter } from './services';
+export * as Crypto from './utils/crypto';
+export * as Utils from './utils/encoding';
+export {
+  generateECDHKeyPairFromhex,
+  generateECDHWithP256,
+  generateIdentity,
+  generateZkIdentityFromHex,
+  generateZKIdentityWithP256,
+} from './utils/identity';
+export { Chat, Connection, Message, Moderation, Post, Profile } from './utils/message';
+export type {
+  ChatJSON,
+  ChatMessageSubType,
+  ConnectionJSON,
+  ConnectionMessageSubType,
+  MessageType,
+  ModerationJSON,
+  ModerationMessageSubType,
+  PostJSON,
+  PostMessageSubType,
+  ProfileJSON,
+  ProfileMessageSubType,
+} from './utils/message';
+export { createRLNProof } from './utils/zk';

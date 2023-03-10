@@ -1,4 +1,4 @@
-import { utf8ToBytes, bytesToUtf8 } from '@waku/byte-utils';
+import { bytesToUtf8, utf8ToBytes } from '@waku/byte-utils';
 import * as proto from '../proto/message';
 
 /**
@@ -20,9 +20,9 @@ export class Message {
     const proofBuf = utf8ToBytes(proof);
 
     return new Message({
-      timestamp: timestampNumber,
       data: dataBuf,
       proof: proofBuf,
+      timestamp: timestampNumber,
     });
   }
 

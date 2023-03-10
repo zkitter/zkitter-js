@@ -1,7 +1,7 @@
-import {sha256, signWithP256} from "./crypto";
-import {arrayBufToBase64UrlEncode, hexToArrayBuf} from "./encoding";
-import EC from 'elliptic';
 import { Strategy, ZkIdentity } from '@zk-kit/identity';
+import EC from 'elliptic';
+import { sha256, signWithP256 } from './crypto';
+import { arrayBufToBase64UrlEncode, hexToArrayBuf } from './encoding';
 
 export const generateIdentity = async (
   nonce = 0,
@@ -39,17 +39,23 @@ export const generateZkIdentityFromHex = async (hashHex: string): Promise<ZkIden
   return new ZkIdentity(Strategy.MESSAGE, hashHex);
 };
 
-export const generateZKIdentityWithP256 = async (base64PrivateKey: string, nonce = 0): Promise<ZkIdentity> => {
+export const generateZKIdentityWithP256 = async (
+  base64PrivateKey: string,
+  nonce = 0
+): Promise<ZkIdentity> => {
   const zkseed = await signWithP256(base64PrivateKey, `signing for zk identity - ${nonce}`);
   const zkHex = await sha256(zkseed);
   return generateZkIdentityFromHex(zkHex);
-}
+};
 
-export const generateECDHWithP256 = async (base64PrivateKey: string, nonce = 0): Promise<{ pub: string; priv: string }> => {
+export const generateECDHWithP256 = async (
+  base64PrivateKey: string,
+  nonce = 0
+): Promise<{ pub: string; priv: string }> => {
   const ecdhseed = await signWithP256(base64PrivateKey, `signing for ecdh - ${nonce}`);
   const ecdhHex = await sha256(ecdhseed);
   return generateECDHKeyPairFromhex(ecdhHex);
-}
+};
 
 export const generateECDHKeyPairFromhex = async (
   hashHex: string

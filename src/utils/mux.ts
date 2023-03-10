@@ -6,7 +6,7 @@ import { Mutex } from 'async-mutex';
  * @param fn
  * @param mutex
  */
-const mutexify = (fn: Function, mutex?: Mutex) => {
+const mutexify = (fn: (...args: any) => void, mutex?: Mutex) => {
   const oldFn = fn;
   const mux = mutex || new Mutex();
 

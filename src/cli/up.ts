@@ -1,11 +1,11 @@
 import { Command } from 'commander';
-import { initZkitter } from '../utils/cli';
-import { Zkitter, ZkitterEvents } from '../services';
-import { error, success } from '../utils/logger';
 import promptly from 'promptly';
+import { Zkitter, ZkitterEvents } from '../services';
+import { UserServiceEvents } from '../services/users';
+import { initZkitter } from '../utils/cli';
+import { error, success } from '../utils/logger';
 import { handleStatus } from './status';
 import { printPosts } from './timeline';
-import { UserServiceEvents } from '../services/users';
 import { handleWhois } from './whois';
 import { handleWrite } from './write';
 
@@ -23,7 +23,7 @@ export function up(program: Command) {
       });
 
       zkitter.on(UserServiceEvents.ArbitrumSynced, data => {
-        const { toBlock, fromBlock, latest } = data;
+        const { fromBlock, latest, toBlock } = data;
         const completion = ((fromBlock / latest) * 100).toFixed(2);
         success(
           `Synced with Arbitrum Mainnet from block #${fromBlock} to #${toBlock}(${completion}%)`

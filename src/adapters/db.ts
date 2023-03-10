@@ -1,9 +1,9 @@
-import { User } from '../models/user';
-import { AnyMessage, Connection, Message, Moderation, Post, Profile } from '../utils/message';
-import { PostMeta } from '../models/postmeta';
-import { UserMeta } from '../models/usermeta';
-import { Proof } from '../models/proof';
 import { GroupMember } from '../models/group';
+import { PostMeta } from '../models/postmeta';
+import { Proof } from '../models/proof';
+import { User } from '../models/user';
+import { UserMeta } from '../models/usermeta';
+import { AnyMessage, Connection, Message, Moderation, Post, Profile } from '../utils/message';
 
 export interface GenericDBAdapterInterface {
   getUserCount: () => Promise<number>;
