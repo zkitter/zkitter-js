@@ -1,5 +1,5 @@
-import {toBigInt} from "./encoding";
-import {sha256} from "./crypto";
+import { sha256 } from './crypto';
+import { toBigInt } from './encoding';
 
 export const deriveChatId = async (receiverECDH: string, senderECDH: string): Promise<string> => {
   const receiverBn = toBigInt(receiverECDH);
@@ -12,4 +12,4 @@ export const deriveChatId = async (receiverECDH: string, senderECDH: string): Pr
   return receiverBn < senderBn
     ? sha256([receiverECDH, senderECDH])
     : sha256([senderECDH, receiverECDH]);
-}
+};

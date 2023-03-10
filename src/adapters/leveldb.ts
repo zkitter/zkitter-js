@@ -1,14 +1,18 @@
 import { BatchOperation, Level } from 'level';
+import { ChatMeta } from '../models/chats';
 import { GroupMember } from '../models/group';
 import { EmptyPostMeta, PostMeta } from '../models/postmeta';
-import { Proof, ProofType } from '../models/proof';
 
 const charwise = require('charwise');
 
+import { Proof, ProofType } from '../models/proof';
 import { User } from '../models/user';
 import { EmptyUserMeta, UserMeta, UserMetaKey } from '../models/usermeta';
+import { deriveChatId } from '../utils/chat';
 import {
-  AnyMessage, Chat, ChatJSON,
+  AnyMessage,
+  Chat,
+  ChatJSON,
   Connection,
   ConnectionJSON,
   ConnectionMessageSubType,
@@ -26,8 +30,6 @@ import {
   ProfileMessageSubType,
 } from '../utils/message';
 import { GenericDBAdapterInterface } from './db';
-import {ChatMeta} from "../models/chats";
-import {deriveChatId} from "../utils/chat";
 
 const keys = {
   APP: {
@@ -642,11 +644,15 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       throw AlreadyExistError;
     }
 
-    const { senderECDH, receiverECDH } = chat.payload;
+    const { receiverECDH, senderECDH } = chat.payload;
 
     const chatId = await deriveChatId(chat.payload.receiverECDH, chat.payload.senderECDH);
-    const senderMeta = await this.chatMetaDB(chat.payload.senderECDH).get(chatId).catch(() => null);
-    const receiverMeta = await this.chatMetaDB(chat.payload.receiverECDH).get(chatId).catch(() => null);
+    const senderMeta = await this.chatMetaDB(chat.payload.senderECDH)
+      .get(chatId)
+      .catch(() => null);
+    const receiverMeta = await this.chatMetaDB(chat.payload.receiverECDH)
+      .get(chatId)
+      .catch(() => null);
 
     const operations: BatchOperation<any, any, any>[] = [
       {
@@ -667,7 +673,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         type: 'put',
         // @ts-ignore
         value: json.hash,
-      }
+      },
     ];
 
     if (!senderMeta) {
@@ -676,10 +682,10 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         sublevel: this.chatMetaDB(chat.payload.senderECDH),
         type: 'put',
         value: {
-          type: chat.subtype,
           chatId,
           receiverECDH,
           senderECDH,
+          type: chat.subtype,
         },
       });
     }
@@ -690,10 +696,10 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         sublevel: this.chatMetaDB(chat.payload.receiverECDH),
         type: 'put',
         value: {
-          type: chat.subtype,
           chatId,
           receiverECDH,
           senderECDH,
+          type: chat.subtype,
         },
       });
     }
@@ -1288,7 +1294,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         .get(offset)
         .catch(() => null);
       if (offsetPost) {
-        const { messageId, createdAt, ...json } = offsetPost;
+        const { createdAt, messageId, ...json } = offsetPost;
         const encodedKey = charwise.encode(createdAt);
         options.lt = encodedKey;
       }

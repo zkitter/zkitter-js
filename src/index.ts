@@ -15,8 +15,8 @@ export type { UserMeta } from './models/usermeta';
 export { EmptyUserMeta } from './models/usermeta';
 
 export { Zkitter } from './services';
-export * as Crypto from './utils/crypto';
 export * as Chats from './utils/chat';
+export * as Crypto from './utils/crypto';
 export * as Utils from './utils/encoding';
 export {
   generateECDHKeyPairFromhex,

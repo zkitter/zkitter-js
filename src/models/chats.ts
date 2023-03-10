@@ -1,4 +1,4 @@
-import {ChatMessageSubType} from "../utils/message";
+import { ChatMessageSubType } from '../utils/message';
 
 export type ChatMeta = DirectMessageChatMeta;
 

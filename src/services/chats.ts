@@ -1,9 +1,9 @@
 import { ConstructorOptions } from 'eventemitter2';
 import { GenericDBAdapterInterface } from '../adapters/db';
+import { ChatMeta } from '../models/chats';
 import { Proof } from '../models/proof';
 import { Chat } from '../utils/message';
 import { GenericService } from '../utils/svc';
-import { ChatMeta } from '../models/chats';
 
 export class ChatService extends GenericService {
   db: GenericDBAdapterInterface;
@@ -21,11 +21,7 @@ export class ChatService extends GenericService {
     return this.db.getChatByECDH(ecdh);
   }
 
-  async getChatMessages(
-    chatId: string,
-    limit?: number,
-    offset?: number | string
-  ): Promise<Chat[]> {
+  async getChatMessages(chatId: string, limit?: number, offset?: number | string): Promise<Chat[]> {
     return this.db.getChatMessages(chatId, limit, offset);
   }
 }

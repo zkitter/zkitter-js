@@ -1,17 +1,18 @@
-import {ZkIdentity} from '@zk-kit/identity';
-import {ConstructorOptions} from 'eventemitter2';
+import { ZkIdentity } from '@zk-kit/identity';
+import { ConstructorOptions } from 'eventemitter2';
 import Web3 from 'web3';
-import {Contract} from 'web3-eth-contract';
-import {GenericDBAdapterInterface} from '../adapters/db';
-import {GenericGroupAdapter} from '../adapters/group';
-import {GlobalGroup} from '../adapters/groups/global';
-import {InterepGroup} from '../adapters/groups/interep';
-import {TazGroup} from '../adapters/groups/taz';
-import {AlreadyExistError, LevelDBAdapter} from '../adapters/leveldb';
-import {PostMeta} from '../models/postmeta';
-import {Proof} from '../models/proof';
-import {User} from '../models/user';
-import {UserMeta} from '../models/usermeta';
+import { Contract } from 'web3-eth-contract';
+import { GenericDBAdapterInterface } from '../adapters/db';
+import { GenericGroupAdapter } from '../adapters/group';
+import { GlobalGroup } from '../adapters/groups/global';
+import { InterepGroup } from '../adapters/groups/interep';
+import { TazGroup } from '../adapters/groups/taz';
+import { AlreadyExistError, LevelDBAdapter } from '../adapters/leveldb';
+import { ChatMeta } from '../models/chats';
+import { PostMeta } from '../models/postmeta';
+import { Proof } from '../models/proof';
+import { User } from '../models/user';
+import { UserMeta } from '../models/usermeta';
 import {
   Chat,
   Connection,
@@ -23,16 +24,15 @@ import {
   Post,
   Profile,
 } from '../utils/message';
-import {GenericService} from '../utils/svc';
-import {ConnectionService} from './connections';
-import {GroupService} from './groups';
-import {ModerationService} from './moderations';
-import {PostService} from './posts';
-import {ChatService} from './chats';
-import {ProfileService} from './profile';
-import {PubsubService} from './pubsub';
-import {UserService} from './users';
-import {ChatMeta} from "../models/chats";
+import { GenericService } from '../utils/svc';
+import { ChatService } from './chats';
+import { ConnectionService } from './connections';
+import { GroupService } from './groups';
+import { ModerationService } from './moderations';
+import { PostService } from './posts';
+import { ProfileService } from './profile';
+import { PubsubService } from './pubsub';
+import { UserService } from './users';
 
 export enum ZkitterEvents {
   ArbitrumSynced = 'Users.ArbitrumSynced',
@@ -121,13 +121,13 @@ export class Zkitter extends GenericService {
     }
 
     return new Zkitter({
+      chats,
       connections,
       db,
       groups,
       historyAPI: options?.historyAPI,
       moderations,
       posts,
-      chats,
       profile,
       pubsub,
       users,
@@ -160,12 +160,12 @@ export class Zkitter extends GenericService {
     this.historyAPI = opts.historyAPI || 'https://api.zkitter.com/v1/history';
 
     this.services = {
+      chats: opts.chats,
       connections: opts.connections,
       groups: opts.groups,
       moderations: opts.moderations,
       posts: opts.posts,
       profile: opts.profile,
-      chats: opts.chats,
       pubsub: opts.pubsub,
       users: opts.users,
     };
@@ -368,11 +368,7 @@ export class Zkitter extends GenericService {
     return this.services.chats.getChatByECDH(ecdh);
   }
 
-  async getChatMessages(
-    chatId: string,
-    limit?: number,
-    offset?: number | string
-  ): Promise<Chat[]> {
+  async getChatMessages(chatId: string, limit?: number, offset?: number | string): Promise<Chat[]> {
     return this.services.chats.getChatMessages(chatId, limit, offset);
   }
 
