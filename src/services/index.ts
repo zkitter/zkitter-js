@@ -545,6 +545,7 @@ export class Zkitter extends GenericService {
   }
 
   async publish(message: ZkitterMessage, proof: Proof) {
-    return this.services.pubsub.publish(message, proof);
+    return this.services.pubsub.publish(message, proof)
+      .then(() => this.insert(message, proof));
   }
 }

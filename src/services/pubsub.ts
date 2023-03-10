@@ -7,6 +7,8 @@ import { Message } from '../models/message';
 import { Proof, ProofType } from '../models/proof';
 import { sha256, signWithP256, verifySignatureP256 } from '../utils/crypto';
 import {
+  Chat,
+  ChatMessageSubType,
   Message as ZkitterMessage,
   MessageType,
   Moderation,
@@ -243,6 +245,23 @@ export class PubsubService extends GenericService {
   async publish(message: ZkitterMessage, proof: Proof) {
     if (await this.validateMessage(message, proof)) {
       const payload = await this.covertMessaegToWakuPayload(message, proof);
+
+      if (message.type === MessageType.Chat && message.subtype === ChatMessageSubType.Direct) {
+        const { senderECDH, receiverECDH } = (message as Chat).payload;
+
+        await this.waku.lightPush.push(createEncoder(chatTopic(receiverECDH, this.topicPrefix)), {
+          payload,
+          timestamp: message.createdAt,
+        });
+
+        await this.waku.lightPush.push(createEncoder(chatTopic(senderECDH, this.topicPrefix)), {
+          payload,
+          timestamp: message.createdAt,
+        });
+
+        return;
+      }
+
       await this.waku.lightPush.push(createEncoder(globalMessageTopic(this.topicPrefix)), {
         payload,
         timestamp: message.createdAt,
@@ -514,6 +533,10 @@ function groupMessageTopic(groupId: string, prefix?: string): string {
 
 function threadTopic(hash: string, prefix?: string): string {
   return [prefix || 'zkitter', WakuFormatVersion, 'thread_' + hash, 'proto'].join('/');
+}
+
+function chatTopic(hash: string, prefix?: string): string {
+  return [prefix || 'zkitter', WakuFormatVersion, 'chat_' + hash, 'proto'].join('/');
 }
 
 function globalMessageTopic(prefix?: string): string {
