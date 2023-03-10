@@ -1,19 +1,21 @@
-import { ZkIdentity } from '@zk-kit/identity';
-import { ConstructorOptions } from 'eventemitter2';
+import {ZkIdentity} from '@zk-kit/identity';
+import {ConstructorOptions} from 'eventemitter2';
 import Web3 from 'web3';
-import { Contract } from 'web3-eth-contract';
-import { GenericDBAdapterInterface } from '../adapters/db';
-import { GenericGroupAdapter } from '../adapters/group';
-import { GlobalGroup } from '../adapters/groups/global';
-import { InterepGroup } from '../adapters/groups/interep';
-import { TazGroup } from '../adapters/groups/taz';
-import { AlreadyExistError, LevelDBAdapter } from '../adapters/leveldb';
-import { PostMeta } from '../models/postmeta';
-import { Proof } from '../models/proof';
-import { User } from '../models/user';
-import { UserMeta } from '../models/usermeta';
+import {Contract} from 'web3-eth-contract';
+import {GenericDBAdapterInterface} from '../adapters/db';
+import {GenericGroupAdapter} from '../adapters/group';
+import {GlobalGroup} from '../adapters/groups/global';
+import {InterepGroup} from '../adapters/groups/interep';
+import {TazGroup} from '../adapters/groups/taz';
+import {AlreadyExistError, LevelDBAdapter} from '../adapters/leveldb';
+import {PostMeta} from '../models/postmeta';
+import {Proof} from '../models/proof';
+import {User} from '../models/user';
+import {UserMeta} from '../models/usermeta';
 import {
+  Chat,
   Connection,
+  Message as ZkitterMessage,
   Message,
   MessageType,
   Moderation,
@@ -21,14 +23,16 @@ import {
   Post,
   Profile,
 } from '../utils/message';
-import { GenericService } from '../utils/svc';
-import { ConnectionService } from './connections';
-import { GroupService } from './groups';
-import { ModerationService } from './moderations';
-import { PostService } from './posts';
-import { ProfileService } from './profile';
-import { PubsubService } from './pubsub';
-import { UserService } from './users';
+import {GenericService} from '../utils/svc';
+import {ConnectionService} from './connections';
+import {GroupService} from './groups';
+import {ModerationService} from './moderations';
+import {PostService} from './posts';
+import {ChatService} from './chats';
+import {ProfileService} from './profile';
+import {PubsubService} from './pubsub';
+import {UserService} from './users';
+import {ChatMeta} from "../models/chats";
 
 export enum ZkitterEvents {
   ArbitrumSynced = 'Users.ArbitrumSynced',
@@ -53,6 +57,7 @@ export class Zkitter extends GenericService {
     users: UserService;
     pubsub: PubsubService;
     posts: PostService;
+    chats: ChatService;
     moderations: ModerationService;
     connections: ConnectionService;
     profile: ProfileService;
@@ -85,6 +90,7 @@ export class Zkitter extends GenericService {
     const moderations = new ModerationService({ db });
     const connections = new ConnectionService({ db });
     const profile = new ProfileService({ db });
+    const chats = new ChatService({ db });
     const groups = new GroupService({ db });
     const pubsub = await PubsubService.initialize(
       users,
@@ -121,6 +127,7 @@ export class Zkitter extends GenericService {
       historyAPI: options?.historyAPI,
       moderations,
       posts,
+      chats,
       profile,
       pubsub,
       users,
@@ -136,6 +143,7 @@ export class Zkitter extends GenericService {
       moderations: ModerationService;
       connections: ConnectionService;
       profile: ProfileService;
+      chats: ChatService;
       groups: GroupService;
       historyAPI?: string;
     }
@@ -157,6 +165,7 @@ export class Zkitter extends GenericService {
       moderations: opts.moderations,
       posts: opts.posts,
       profile: opts.profile,
+      chats: opts.chats,
       pubsub: opts.pubsub,
       users: opts.users,
     };
@@ -355,6 +364,18 @@ export class Zkitter extends GenericService {
     return this.services.users.getMessagesByUser(address, limit, offset);
   }
 
+  async getChatByECDH(ecdh: string): Promise<ChatMeta[]> {
+    return this.services.chats.getChatByECDH(ecdh);
+  }
+
+  async getChatMessages(
+    chatId: string,
+    limit?: number,
+    offset?: number | string
+  ): Promise<Chat[]> {
+    return this.services.chats.getChatMessages(chatId, limit, offset);
+  }
+
   private async insert(msg: Message, proof: Proof) {
     try {
       switch (msg?.type) {
@@ -372,6 +393,10 @@ export class Zkitter extends GenericService {
           break;
         case MessageType.Profile:
           await this.services.profile.insert(msg as Profile, proof);
+          this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
+          break;
+        case MessageType.Chat:
+          await this.services.chats.insert(msg as Chat, proof);
           this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
           break;
       }
@@ -521,5 +546,9 @@ export class Zkitter extends GenericService {
     groupId?: string;
   }): Promise<Proof> {
     return this.services.pubsub.createProof(opts);
+  }
+
+  async publish(message: ZkitterMessage, proof: Proof) {
+    return this.services.pubsub.publish(message, proof);
   }
 }

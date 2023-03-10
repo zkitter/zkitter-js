@@ -8,7 +8,7 @@ const charwise = require('charwise');
 import { User } from '../models/user';
 import { EmptyUserMeta, UserMeta, UserMetaKey } from '../models/usermeta';
 import {
-  AnyMessage,
+  AnyMessage, Chat, ChatJSON,
   Connection,
   ConnectionJSON,
   ConnectionMessageSubType,
@@ -26,6 +26,8 @@ import {
   ProfileMessageSubType,
 } from '../utils/message';
 import { GenericDBAdapterInterface } from './db';
+import {ChatMeta} from "../models/chats";
+import {deriveChatId} from "../utils/chat";
 
 const keys = {
   APP: {
@@ -123,6 +125,16 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
   userMessageDB(address: string) {
     return this.db.sublevel<string, string>(address + '/messages', {
+      valueEncoding: 'json',
+    });
+  }
+
+  chatDB(chatId: string) {
+    return this.db.sublevel<string, string>(chatId, { valueEncoding: 'json' });
+  }
+
+  chatMetaDB(ecdh: string) {
+    return this.db.sublevel<string, ChatMeta>(ecdh + '/chatMeta', {
       valueEncoding: 'json',
     });
   }
@@ -620,6 +632,77 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return mod;
   }
 
+  async insertChat(chat: Chat, proof: Proof): Promise<Chat> {
+    const json = chat.toJSON();
+    const existing = await this.messageDB()
+      .get(json.hash)
+      .catch(() => null);
+
+    if (existing) {
+      throw AlreadyExistError;
+    }
+
+    const { senderECDH, receiverECDH } = chat.payload;
+
+    const chatId = await deriveChatId(chat.payload.receiverECDH, chat.payload.senderECDH);
+    const senderMeta = await this.chatMetaDB(chat.payload.senderECDH).get(chatId).catch(() => null);
+    const receiverMeta = await this.chatMetaDB(chat.payload.receiverECDH).get(chatId).catch(() => null);
+
+    const operations: BatchOperation<any, any, any>[] = [
+      {
+        key: json.hash,
+        sublevel: this.messageDB(),
+        type: 'put',
+        value: json,
+      },
+      {
+        key: json.hash,
+        sublevel: this.proofDB(),
+        type: 'put',
+        value: proof,
+      },
+      {
+        key: charwise.encode(chat.createdAt.getTime()),
+        sublevel: this.chatDB(chatId),
+        type: 'put',
+        // @ts-ignore
+        value: json.hash,
+      }
+    ];
+
+    if (!senderMeta) {
+      operations.push({
+        key: chatId,
+        sublevel: this.chatMetaDB(chat.payload.senderECDH),
+        type: 'put',
+        value: {
+          type: chat.subtype,
+          chatId,
+          receiverECDH,
+          senderECDH,
+        },
+      });
+    }
+
+    if (!receiverMeta) {
+      operations.push({
+        key: chatId,
+        sublevel: this.chatMetaDB(chat.payload.receiverECDH),
+        type: 'put',
+        value: {
+          type: chat.subtype,
+          chatId,
+          receiverECDH,
+          senderECDH,
+        },
+      });
+    }
+
+    await this.db.batch(operations);
+
+    return chat;
+  }
+
   async insertPost(post: Post, proof: Proof): Promise<Post> {
     const json = post.toJSON();
     const existing = await this.messageDB()
@@ -640,21 +723,18 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         key: json.hash,
         sublevel: this.messageDB(),
         type: 'put',
-        // @ts-ignore
         value: json,
       },
       {
         key: json.hash,
         sublevel: this.proofDB(),
         type: 'put',
-        // @ts-ignore
         value: proof,
       },
       {
         key: charwise.encode(post.createdAt.getTime()),
         sublevel: this.userMessageDB(post.creator),
         type: 'put',
-        // @ts-ignore
         value: json.hash,
       },
     ];
@@ -680,14 +760,12 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         key: encodedKey,
         sublevel: this.postlistDB,
         type: 'put',
-        // @ts-ignore
         value: json.hash,
       });
       operations.push({
         key: charwise.encode(post.createdAt.getTime()),
         sublevel: this.userPostsDB(post.creator),
         type: 'put',
-        // @ts-ignore
         value: json.hash,
       });
       creatorMeta.posts = creatorMeta.posts + 1;
@@ -695,7 +773,6 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         key: post.creator,
         sublevel: this.userMetaDB,
         type: 'put',
-        // @ts-ignore
         value: {
           ...EmptyUserMeta(),
           ...creatorMeta,
@@ -712,7 +789,6 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         key: encodedKey,
         sublevel: this.threadDB(hash),
         type: 'put',
-        // @ts-ignore
         value: json.hash,
       });
     } else if (post.subtype === PostMessageSubType.Repost) {
@@ -724,21 +800,18 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         key: encodedKey,
         sublevel: this.postlistDB,
         type: 'put',
-        // @ts-ignore
         value: json.hash,
       });
       operations.push({
         key: charwise.encode(post.createdAt.getTime()),
         sublevel: this.userPostsDB(post.creator),
         type: 'put',
-        // @ts-ignore
         value: json.hash,
       });
       operations.push({
         key: encodedKey,
         sublevel: this.repostDB(hash),
         type: 'put',
-        // @ts-ignore
         value: json.hash,
       });
     }
@@ -748,7 +821,6 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         key: json.hash,
         sublevel: this.postMetaDB,
         type: 'put',
-        // @ts-ignore
         value: postMeta,
       });
     }
@@ -1193,6 +1265,52 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     }
 
     return members;
+  }
+
+  async getChatByECDH(ecdh: string): Promise<ChatMeta[]> {
+    const options: any = { valueEncoding: 'json' };
+    const chatMetas: ChatMeta[] = [];
+
+    for await (const value of this.chatMetaDB(ecdh).values(options)) {
+      chatMetas.push(value);
+    }
+
+    return chatMetas;
+  }
+
+  async getChatMessages(chatId: string, limit?: number, offset?: number | string): Promise<Chat[]> {
+    const options: any = { reverse: true, valueEncoding: 'json' };
+
+    if (typeof limit === 'number') options.limit = limit;
+
+    if (typeof offset === 'string') {
+      const offsetPost = await this.messageDB<ChatJSON>()
+        .get(offset)
+        .catch(() => null);
+      if (offsetPost) {
+        const { messageId, createdAt, ...json } = offsetPost;
+        const encodedKey = charwise.encode(createdAt);
+        options.lt = encodedKey;
+      }
+    }
+
+    const chats: Chat[] = [];
+
+    for await (const value of this.chatDB(chatId).values(options)) {
+      const chatJSON = await this.messageDB<ChatJSON>().get(value);
+      const { messageId, ...json } = chatJSON;
+      const { creator } = parseMessageId(messageId);
+
+      chats.push(
+        new Chat({
+          ...json,
+          createdAt: new Date(json.createdAt),
+          creator,
+        })
+      );
+    }
+
+    return chats;
   }
 
   async findGroupHash(hash: string): Promise<string | null> {

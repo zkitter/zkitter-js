@@ -66,7 +66,7 @@ export const generateECDHKeyPairFromhex = async (
   const privhex = key.getPrivate().toString('hex');
 
   return {
-    priv: privhex,
-    pub: pubhex,
+    priv: '0x' + privhex,
+    pub: '0x' + pubhex,
   };
 };

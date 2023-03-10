@@ -25,8 +25,18 @@ export function verifySignatureP256(pubkey: string, data: string, signature: str
     Buffer.from(signature, 'hex').toJSON().data
   );
 }
-export const sha256 = async (data: string): Promise<string> => {
-  return crypto.createHash('sha256').update(data).digest('hex');
+export const sha256 = async (data: string | string[]): Promise<string> => {
+  let h = crypto.createHash('sha256');
+
+  if (typeof data === 'string') {
+    h = h.update(data);
+  } else {
+    data.forEach(d => {
+      h = h.update(d);
+    });
+  }
+
+  return h.digest('hex');
 };
 
 export const deriveSharedSecret = (receiverPubkey: string, senderPrivateKey: string): string => {

@@ -243,7 +243,6 @@ export class PubsubService extends GenericService {
   async publish(message: ZkitterMessage, proof: Proof) {
     if (await this.validateMessage(message, proof)) {
       const payload = await this.covertMessaegToWakuPayload(message, proof);
-
       await this.waku.lightPush.push(createEncoder(globalMessageTopic(this.topicPrefix)), {
         payload,
         timestamp: message.createdAt,
@@ -302,7 +301,6 @@ export class PubsubService extends GenericService {
       for (const message of wakuMessages.filter(msg => !!msg)) {
         if (message?.payload) {
           const decoded = Message.decode(message.payload);
-          1;
           const msg = ZkitterMessage.fromHex(decoded.data);
           const proof: Proof = JSON.parse(decoded.proof);
           if (msg && (await this.validateMessage(msg, proof))) {

@@ -56,6 +56,8 @@ export class Message {
         return Connection.fromHex(hex);
       case MessageType.Profile:
         return Profile.fromHex(hex);
+      case MessageType.Chat:
+        return Chat.fromHex(hex);
     }
 
     function cb(n: number) {

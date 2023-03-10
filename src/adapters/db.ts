@@ -3,7 +3,8 @@ import { PostMeta } from '../models/postmeta';
 import { Proof } from '../models/proof';
 import { User } from '../models/user';
 import { UserMeta } from '../models/usermeta';
-import { AnyMessage, Connection, Message, Moderation, Post, Profile } from '../utils/message';
+import {AnyMessage, Chat, Connection, Message, Moderation, Post, Profile} from '../utils/message';
+import {ChatMeta} from "../models/chats";
 
 export interface GenericDBAdapterInterface {
   getUserCount: () => Promise<number>;
@@ -20,6 +21,7 @@ export interface GenericDBAdapterInterface {
   getGroupMembers: (groupId: string, limit?: number, offset?: number | string) => Promise<string[]>;
   findGroupHash: (hash: string) => Promise<string | null>;
   insertPost: (post: Post, proof: Proof) => Promise<Post>;
+  insertChat: (chat: Chat, proof: Proof) => Promise<Chat>;
   insertModeration: (moderation: Moderation, proof: Proof) => Promise<Moderation | null>;
   insertConnection: (connection: Connection, proof: Proof) => Promise<Connection | null>;
   insertProfile: (profile: Profile, proof: Proof) => Promise<Profile | null>;
@@ -49,4 +51,6 @@ export interface GenericDBAdapterInterface {
     limit?: number,
     offset?: number | string
   ) => Promise<Connection[]>;
+  getChatByECDH: (ecdh: string) => Promise<ChatMeta[]>;
+  getChatMessages: (chatId: string, limit?: number, offset?: number | string) => Promise<Chat[]>;
 }
