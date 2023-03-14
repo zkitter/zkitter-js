@@ -5,6 +5,7 @@ import { Proof } from '../models/proof';
 import { User } from '../models/user';
 import { UserMeta } from '../models/usermeta';
 import { AnyMessage, Chat, Connection, Message, Moderation, Post, Profile } from '../utils/message';
+import {Filter} from "../utils/filters";
 
 export interface GenericDBAdapterInterface {
   getUserCount: () => Promise<number>;
@@ -35,10 +36,7 @@ export interface GenericDBAdapterInterface {
   getPosts: (limit?: number, offset?: number | string) => Promise<Post[]>;
   getFollowings: (address: string) => Promise<string[]>;
   getHomefeed: (
-    filter: {
-      addresses: { [address: string]: true };
-      groups: { [groupId: string]: true };
-    },
+    filter: Filter,
     limit?: number,
     offset?: number | string
   ) => Promise<Post[]>;

@@ -4,6 +4,7 @@ import { PostMeta } from '../models/postmeta';
 import { Proof } from '../models/proof';
 import { Post } from '../utils/message';
 import { GenericService } from '../utils/svc';
+import {Filter} from "../utils/filters";
 
 export class PostService extends GenericService {
   db: GenericDBAdapterInterface;
@@ -34,10 +35,7 @@ export class PostService extends GenericService {
   }
 
   async getHomefeed(
-    filter: {
-      addresses: { [address: string]: true };
-      groups: { [groupId: string]: true };
-    },
+    filter: Filter,
     limit = -1,
     offset?: number | string
   ): Promise<Post[]> {

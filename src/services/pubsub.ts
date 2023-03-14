@@ -21,8 +21,14 @@ import { GenericService } from '../utils/svc';
 import { createRLNProof, verifyRLNProof } from '../utils/zk';
 import { GroupService } from './groups';
 import { UserService } from './users';
-
-const WakuFormatVersion = '1.0.0';
+import {
+  chatTopic,
+  threadTopic,
+  globalMessageTopic,
+  userMessageTopic,
+  groupMessageTopic,
+} from '../utils/pubsub';
+import {Filter} from "../utils/filters";
 
 export class PubsubService extends GenericService {
   waku: LightNode;
@@ -391,26 +397,11 @@ export class PubsubService extends GenericService {
   }
 
   async query(
-    options:
-      | {
-          groups?: string[];
-          users?: string[];
-          threads?: string[];
-        }
-      | null
-      | undefined,
+    filter: Filter,
     cb: (message: ZkitterMessage, proof: Proof) => Promise<void>
   ) {
-    const global = !options;
-    const { groups = [], threads = [], users = [] } = options || {};
-    const topics = [
-      ...groups.map(g => groupMessageTopic(g, this.topicPrefix)),
-      ...users.map(u => userMessageTopic(u, this.topicPrefix)),
-      ...threads.map(t => threadTopic(t, this.topicPrefix)),
-    ];
-    const decoders = global
-      ? [createDecoder(globalMessageTopic(this.topicPrefix))]
-      : topics.map(createDecoder);
+    const topics = filter.topics;
+    const decoders = topics.map(createDecoder);
 
     if (!decoders.length) return;
 
@@ -431,86 +422,12 @@ export class PubsubService extends GenericService {
     }
   }
 
-  async subscribeUser(
-    address: string,
-    cb: (message: ZkitterMessage, proof: Proof) => Promise<void>
-  ) {
-    const decoder = createDecoder(userMessageTopic(address, this.topicPrefix));
-    return this.waku.filter.subscribe([decoder], async wakuMessage => {
-      const decoded = Message.decode(wakuMessage.payload!);
-      const msg = ZkitterMessage.fromHex(decoded.data);
-      const proof: Proof = JSON.parse(decoded.proof);
-      if (msg && (await this.validateMessage(msg, proof))) {
-        await cb(msg, proof);
-      }
-    });
-  }
-
-  async subscribeUsers(
-    addresses: string[],
-    cb: (message: ZkitterMessage, proof: Proof) => Promise<void>
-  ) {
-    return this.waku.filter.subscribe(
-      addresses.map(addy => createDecoder(userMessageTopic(addy, this.topicPrefix))),
-      async wakuMessage => {
-        const decoded = Message.decode(wakuMessage.payload!);
-        const msg = ZkitterMessage.fromHex(decoded.data);
-        const proof: Proof = JSON.parse(decoded.proof);
-        if (msg && (await this.validateMessage(msg, proof))) {
-          await cb(msg, proof);
-        }
-      }
-    );
-  }
-
-  async subscribeAll(cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
-    const decoder = createDecoder(globalMessageTopic(this.topicPrefix));
-    return this.waku.filter.subscribe([decoder], async wakuMessage => {
-      const decoded = Message.decode(wakuMessage.payload!);
-      const msg = ZkitterMessage.fromHex(decoded.data);
-      const proof: Proof = JSON.parse(decoded.proof);
-      if (msg && (await this.validateMessage(msg, proof))) {
-        await cb(msg, proof);
-      }
-    });
-  }
-
-  async subscribeThread(
-    hash: string,
-    cb: (message: ZkitterMessage, proof: Proof) => Promise<void>
-  ) {
-    const decoder = createDecoder(threadTopic(hash, this.topicPrefix));
-    return this.waku.filter.subscribe([decoder], async wakuMessage => {
-      const decoded = Message.decode(wakuMessage.payload!);
-      const msg = ZkitterMessage.fromHex(decoded.data);
-      const proof: Proof = JSON.parse(decoded.proof);
-      if (msg && (await this.validateMessage(msg, proof))) {
-        await cb(msg, proof);
-      }
-    });
-  }
-
   async subscribe(
-    options:
-      | {
-          groups?: string[];
-          users?: string[];
-          threads?: string[];
-        }
-      | null
-      | undefined,
+    filter: Filter,
     cb: (message: ZkitterMessage, proof: Proof) => Promise<void>
   ) {
-    const global = !options;
-    const { groups = [], threads = [], users = [] } = options || {};
-    const topics = [
-      ...groups.map(g => groupMessageTopic(g, this.topicPrefix)),
-      ...users.map(u => userMessageTopic(u, this.topicPrefix)),
-      ...threads.map(t => threadTopic(t, this.topicPrefix)),
-    ];
-    const decoders = global
-      ? [createDecoder(globalMessageTopic(this.topicPrefix))]
-      : topics.map(createDecoder);
+    const topics = filter.topics;
+    const decoders = topics.map(createDecoder);
 
     return this.waku.filter.subscribe(decoders, async wakuMessage => {
       const decoded = Message.decode(wakuMessage.payload!);
@@ -521,24 +438,4 @@ export class PubsubService extends GenericService {
       }
     });
   }
-}
-
-function userMessageTopic(address: string, prefix?: string): string {
-  return [prefix || 'zkitter', WakuFormatVersion, 'um_' + address, 'proto'].join('/');
-}
-
-function groupMessageTopic(groupId: string, prefix?: string): string {
-  return [prefix || 'zkitter', WakuFormatVersion, 'gm_' + groupId, 'proto'].join('/');
-}
-
-function threadTopic(hash: string, prefix?: string): string {
-  return [prefix || 'zkitter', WakuFormatVersion, 'thread_' + hash, 'proto'].join('/');
-}
-
-function chatTopic(hash: string, prefix?: string): string {
-  return [prefix || 'zkitter', WakuFormatVersion, 'chat_' + hash, 'proto'].join('/');
-}
-
-function globalMessageTopic(prefix?: string): string {
-  return [prefix || 'zkitter', WakuFormatVersion, 'all_messages', 'proto'].join('/');
 }

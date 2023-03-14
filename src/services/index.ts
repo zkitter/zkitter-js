@@ -33,6 +33,7 @@ import { PostService } from './posts';
 import { ProfileService } from './profile';
 import { PubsubService } from './pubsub';
 import { UserService } from './users';
+import {Filter, FilterOptions} from "../utils/filters";
 
 export enum ZkitterEvents {
   ArbitrumSynced = 'Users.ArbitrumSynced',
@@ -64,12 +65,7 @@ export class Zkitter extends GenericService {
     groups: GroupService;
   };
 
-  readonly subscriptions: {
-    groups: { [groupId: string]: string };
-    users: { [address: string]: string };
-    threads: { [hash: string]: string };
-    all: boolean;
-  };
+  private filter: Filter;
 
   private unsubscribe: (() => Promise<void>) | null;
 
@@ -80,6 +76,7 @@ export class Zkitter extends GenericService {
     historyAPI?: string;
     lazy?: boolean;
     topicPrefix?: string;
+    filterOptions?: FilterOptions;
   }): Promise<Zkitter> {
     const db = options?.db || (await LevelDBAdapter.initialize());
     const users = new UserService({
@@ -131,6 +128,10 @@ export class Zkitter extends GenericService {
       profile,
       pubsub,
       users,
+      filter: new Filter({
+        ...options?.filterOptions,
+        prefix: options?.topicPrefix,
+      }),
     });
   }
 
@@ -146,17 +147,13 @@ export class Zkitter extends GenericService {
       chats: ChatService;
       groups: GroupService;
       historyAPI?: string;
+      filter?: Filter;
     }
   ) {
     super(opts);
     this.db = opts.db;
     this.unsubscribe = null;
-    this.subscriptions = {
-      all: false,
-      groups: {},
-      threads: {},
-      users: {},
-    };
+    this.filter = opts.filter || new Filter({});
     this.historyAPI = opts.historyAPI || 'https://api.zkitter.com/v1/history';
 
     this.services = {
@@ -181,46 +178,6 @@ export class Zkitter extends GenericService {
     return this.services.users.status();
   }
 
-  private appendNewSubscription(
-    options?: {
-      groups?: string[];
-      users?: string[];
-      threads?: string[];
-    } | null
-  ) {
-    this.subscriptions.all = !options;
-
-    if (options?.users?.length) {
-      this.subscriptions.users = {
-        ...this.subscriptions.users,
-        ...options.users.reduce((m: any, a) => {
-          m[a] = a;
-          return m;
-        }, {}),
-      };
-    }
-
-    if (options?.groups?.length) {
-      this.subscriptions.groups = {
-        ...this.subscriptions.groups,
-        ...options.groups.reduce((m: any, a) => {
-          m[a] = a;
-          return m;
-        }, {}),
-      };
-    }
-
-    if (options?.threads?.length) {
-      this.subscriptions.threads = {
-        ...this.subscriptions.threads,
-        ...options.threads.reduce((m: any, a) => {
-          m[a] = a;
-          return m;
-        }, {}),
-      };
-    }
-  }
-
   /**
    * start zkitter node
    * use zkitter.subscribe to subcribe to new messages
@@ -228,6 +185,10 @@ export class Zkitter extends GenericService {
   async start() {
     await this.services.users.watchArbitrum();
     await this.services.groups.watch();
+    if (!this.filter.isEmpty) {
+      await this.query();
+      await this.subscribe();
+    }
   }
 
   /**
@@ -237,44 +198,12 @@ export class Zkitter extends GenericService {
    * @param options.users string[]     list of user address
    * @param options.threads string[]     list of thread hashes
    */
-  async subscribe(
-    options?: {
-      groups?: string[];
-      users?: string[];
-      threads?: string[];
-    } | null
-  ) {
-    this.appendNewSubscription(options);
-
-    if (options?.users?.length) {
-      for (const user of options.users) {
-        await this.queryHistory(user);
-      }
-    }
-
-    if (options?.groups?.length) {
-      await this.queryHistory('');
-    }
-
-    if (!options) {
-      await this.queryHistory();
-    }
-
+  async subscribe() {
     if (this.unsubscribe) {
       await this.unsubscribe();
     }
 
-    const { all, groups, threads, users } = this.subscriptions;
-    const subs = all
-      ? null
-      : {
-          groups: Object.keys(groups),
-          threads: Object.keys(threads),
-          users: Object.keys(users),
-        };
-
-    await this.query(subs);
-    this.unsubscribe = await this.services.pubsub.subscribe(subs, async (msg, proof) => {
+    this.unsubscribe = await this.services.pubsub.subscribe(this.filter, async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
       }
@@ -283,14 +212,14 @@ export class Zkitter extends GenericService {
     return this.unsubscribe;
   }
 
-  async query(
-    options?: {
-      groups?: string[];
-      users?: string[];
-      threads?: string[];
-    } | null
-  ) {
-    return this.services.pubsub.query(options, async (msg, proof) => {
+  async updateFilter(options: Exclude<FilterOptions, { prefix?: string }>) {
+    this.filter.update(options);
+    await this.query();
+    return this.subscribe();
+  }
+
+  async query() {
+    return this.services.pubsub.query(this.filter, async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
       }
@@ -338,10 +267,7 @@ export class Zkitter extends GenericService {
   }
 
   async getHomefeed(
-    filter: {
-      addresses: { [address: string]: true };
-      groups: { [groupId: string]: true };
-    },
+    filter: Filter,
     limit = -1,
     offset?: number | string
   ): Promise<Post[]> {
@@ -397,11 +323,10 @@ export class Zkitter extends GenericService {
           break;
       }
     } catch (e) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error(e);
-      }
       if (e === AlreadyExistError) {
         this.emit(ZkitterEvents.AlreadyExist, msg);
+      } else if (process.env.NODE_ENV === 'development') {
+        console.error(e);
       }
     }
   }
@@ -415,7 +340,6 @@ export class Zkitter extends GenericService {
   }
 
   async queryUser(address: string) {
-    await this.queryHistory(address);
     return this.services.pubsub.queryUser(address, async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
@@ -439,13 +363,11 @@ export class Zkitter extends GenericService {
     });
   }
 
-  async queryHistory(user?: string): Promise<void> {
-    const downloaded = await this.db.getHistoryDownloaded(user);
+  async downloadHistoryFromAPI(): Promise<void> {
+    const downloaded = await this.db.getHistoryDownloaded();
     if (downloaded) return;
 
-    const query = typeof user === 'string' ? (user ? '?user=' + user : '?global=true') : '';
-
-    const resp = await fetch(this.historyAPI + query);
+    const resp = await fetch(this.historyAPI);
     const json = await resp.json();
 
     // eslint-disable-next-line no-async-promise-executor
@@ -506,7 +428,7 @@ export class Zkitter extends GenericService {
           }
         }
 
-        await this.db.setHistoryDownloaded(true, user);
+        await this.db.setHistoryDownloaded(true);
         resolve();
       } catch (e) {
         reject(e);

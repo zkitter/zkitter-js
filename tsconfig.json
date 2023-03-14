@@ -10,7 +10,7 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
     "module": "esnext",
-    "target": "es5",
+    "target": "es2015",
     "lib": ["esnext", "dom"],
     "resolveJsonModule": true,
     "isolatedModules": true,

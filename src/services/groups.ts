@@ -4,7 +4,7 @@ import { GenericDBAdapterInterface } from '../adapters/db';
 import { GenericGroupAdapter, GroupEvents } from '../adapters/group';
 import { GenericService } from '../utils/svc';
 
-const DEFAULT_WATCH_INTERVAL = 1000 * 60 * 15;
+const DEFAULT_WATCH_INTERVAL = 1000 * 60 * 60;
 
 export class GroupService extends GenericService {
   db: GenericDBAdapterInterface;

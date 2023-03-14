@@ -17,7 +17,7 @@ export enum UserServiceEvents {
   InvalidEventData = 'Users.InvalidEventData',
 }
 
-const DEFAULT_WATCH_INTERVAL = 1000 * 15;
+const DEFAULT_WATCH_INTERVAL = 1000 * 60;
 
 export class UserService extends GenericService {
   web3: Web3;

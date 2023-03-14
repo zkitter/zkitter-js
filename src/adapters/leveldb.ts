@@ -30,6 +30,7 @@ import {
   ProfileMessageSubType,
 } from '../utils/message';
 import { GenericDBAdapterInterface } from './db';
+import {Filter} from "../utils/filters";
 
 const keys = {
   APP: {
@@ -879,10 +880,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   async getHomefeed(
-    filter: {
-      addresses: { [address: string]: true };
-      groups: { [groupId: string]: true };
-    },
+    filter: Filter,
     limit = -1,
     offset?: number | string
   ): Promise<Post[]> {
@@ -913,14 +911,14 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       const { hash, messageId, ...json } = post;
       const { creator } = parseMessageId(messageId);
 
-      if (creator && !filter.addresses[creator]) {
+      if (creator && !filter.has(creator)) {
         continue;
       }
 
       const meta = await this.getPostMeta(hash);
       const groupId = meta?.groupId;
 
-      if (!creator && !filter.groups[groupId]) {
+      if (!creator && !filter.has(groupId)) {
         continue;
       }
 
