@@ -13,6 +13,7 @@ import { PostMeta } from '../models/postmeta';
 import { Proof } from '../models/proof';
 import { User } from '../models/user';
 import { UserMeta } from '../models/usermeta';
+import { Filter, FilterOptions } from '../utils/filters';
 import {
   Chat,
   Connection,
@@ -33,7 +34,6 @@ import { PostService } from './posts';
 import { ProfileService } from './profile';
 import { PubsubService } from './pubsub';
 import { UserService } from './users';
-import {Filter, FilterOptions} from "../utils/filters";
 
 export enum ZkitterEvents {
   ArbitrumSynced = 'Users.ArbitrumSynced',
@@ -121,6 +121,10 @@ export class Zkitter extends GenericService {
       chats,
       connections,
       db,
+      filter: new Filter({
+        ...options?.filterOptions,
+        prefix: options?.topicPrefix,
+      }),
       groups,
       historyAPI: options?.historyAPI,
       moderations,
@@ -128,10 +132,6 @@ export class Zkitter extends GenericService {
       profile,
       pubsub,
       users,
-      filter: new Filter({
-        ...options?.filterOptions,
-        prefix: options?.topicPrefix,
-      }),
     });
   }
 
@@ -266,11 +266,7 @@ export class Zkitter extends GenericService {
     return this.services.users.getFollowings(address);
   }
 
-  async getHomefeed(
-    filter: Filter,
-    limit = -1,
-    offset?: number | string
-  ): Promise<Post[]> {
+  async getHomefeed(filter: Filter, limit = -1, offset?: number | string): Promise<Post[]> {
     return this.services.posts.getHomefeed(filter, limit, offset);
   }
 
@@ -467,7 +463,6 @@ export class Zkitter extends GenericService {
   }
 
   async publish(message: ZkitterMessage, proof: Proof) {
-    return this.services.pubsub.publish(message, proof)
-      .then(() => this.insert(message, proof));
+    return this.services.pubsub.publish(message, proof).then(() => this.insert(message, proof));
   }
 }

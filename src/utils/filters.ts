@@ -1,9 +1,9 @@
 import {
   chatTopic,
-  threadTopic,
   globalMessageTopic,
-  userMessageTopic,
   groupMessageTopic,
+  threadTopic,
+  userMessageTopic,
 } from '../utils/pubsub';
 
 export type FilterOptions = {
@@ -13,7 +13,7 @@ export type FilterOptions = {
   thread?: string[];
   all?: boolean;
   prefix?: string;
-}
+};
 
 export class Filter {
   private address: Set<string>;
@@ -25,11 +25,11 @@ export class Filter {
   constructor(options?: FilterOptions) {
     const {
       address = [],
-      group = [],
-      ecdh = [],
-      thread = [],
       all = false,
+      ecdh = [],
+      group = [],
       prefix = '',
+      thread = [],
     } = options || {};
 
     this.address = new Set(address);
@@ -43,11 +43,9 @@ export class Filter {
   }
 
   get isEmpty() {
-    return !this.address.size
-      && !this.group.size
-      && !this.ecdh.size
-      && !this.thread.size
-      && !this.all;
+    return (
+      !this.address.size && !this.group.size && !this.ecdh.size && !this.thread.size && !this.all
+    );
   }
 
   get topics(): string[] {
@@ -68,25 +66,21 @@ export class Filter {
   has(identifier: string): boolean {
     if (this.all) return true;
 
-    return this.address.has(identifier)
-      || this.group.has(identifier)
-      || this.thread.has(identifier)
-      || this.ecdh.has(identifier);
+    return (
+      this.address.has(identifier) ||
+      this.group.has(identifier) ||
+      this.thread.has(identifier) ||
+      this.ecdh.has(identifier)
+    );
   }
 
   update = (options: Exclude<FilterOptions, { prefix?: string }>) => {
-    const {
-      address = [],
-      group = [],
-      ecdh = [],
-      thread = [],
-      all = false,
-    } = options || {};
+    const { address = [], all = false, ecdh = [], group = [], thread = [] } = options || {};
 
     address.forEach(a => this.address.add(a));
     group.forEach(a => this.group.add(a));
     ecdh.forEach(a => this.ecdh.add(a));
     thread.forEach(a => this.thread.add(a));
     this.all = all;
-  }
+  };
 }

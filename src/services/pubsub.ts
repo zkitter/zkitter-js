@@ -6,6 +6,7 @@ import { LightNode, Protocols } from '@waku/interfaces';
 import { Message } from '../models/message';
 import { Proof, ProofType } from '../models/proof';
 import { sha256, signWithP256, verifySignatureP256 } from '../utils/crypto';
+import { Filter } from '../utils/filters';
 import {
   Chat,
   ChatMessageSubType,
@@ -17,18 +18,17 @@ import {
   Post,
   PostMessageSubType,
 } from '../utils/message';
+import {
+  chatTopic,
+  globalMessageTopic,
+  groupMessageTopic,
+  threadTopic,
+  userMessageTopic,
+} from '../utils/pubsub';
 import { GenericService } from '../utils/svc';
 import { createRLNProof, verifyRLNProof } from '../utils/zk';
 import { GroupService } from './groups';
 import { UserService } from './users';
-import {
-  chatTopic,
-  threadTopic,
-  globalMessageTopic,
-  userMessageTopic,
-  groupMessageTopic,
-} from '../utils/pubsub';
-import {Filter} from "../utils/filters";
 
 export class PubsubService extends GenericService {
   waku: LightNode;
@@ -253,7 +253,7 @@ export class PubsubService extends GenericService {
       const payload = await this.covertMessaegToWakuPayload(message, proof);
 
       if (message.type === MessageType.Chat && message.subtype === ChatMessageSubType.Direct) {
-        const { senderECDH, receiverECDH } = (message as Chat).payload;
+        const { receiverECDH, senderECDH } = (message as Chat).payload;
 
         await this.waku.lightPush.push(createEncoder(chatTopic(receiverECDH, this.topicPrefix)), {
           payload,
@@ -396,10 +396,7 @@ export class PubsubService extends GenericService {
     }
   }
 
-  async query(
-    filter: Filter,
-    cb: (message: ZkitterMessage, proof: Proof) => Promise<void>
-  ) {
+  async query(filter: Filter, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
     const topics = filter.topics;
     const decoders = topics.map(createDecoder);
 
@@ -422,10 +419,7 @@ export class PubsubService extends GenericService {
     }
   }
 
-  async subscribe(
-    filter: Filter,
-    cb: (message: ZkitterMessage, proof: Proof) => Promise<void>
-  ) {
+  async subscribe(filter: Filter, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
     const topics = filter.topics;
     const decoders = topics.map(createDecoder);
 

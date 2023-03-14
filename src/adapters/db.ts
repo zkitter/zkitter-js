@@ -4,8 +4,8 @@ import { PostMeta } from '../models/postmeta';
 import { Proof } from '../models/proof';
 import { User } from '../models/user';
 import { UserMeta } from '../models/usermeta';
+import { Filter } from '../utils/filters';
 import { AnyMessage, Chat, Connection, Message, Moderation, Post, Profile } from '../utils/message';
-import {Filter} from "../utils/filters";
 
 export interface GenericDBAdapterInterface {
   getUserCount: () => Promise<number>;
@@ -35,11 +35,7 @@ export interface GenericDBAdapterInterface {
   getPost: (hash: string) => Promise<Post | null>;
   getPosts: (limit?: number, offset?: number | string) => Promise<Post[]>;
   getFollowings: (address: string) => Promise<string[]>;
-  getHomefeed: (
-    filter: Filter,
-    limit?: number,
-    offset?: number | string
-  ) => Promise<Post[]>;
+  getHomefeed: (filter: Filter, limit?: number, offset?: number | string) => Promise<Post[]>;
   getUserPosts: (address: string, limit?: number, offset?: number | string) => Promise<Post[]>;
   getReplies: (hash: string, limit?: number, offset?: number | string) => Promise<Post[]>;
   getReposts: (hash: string, limit?: number, offset?: number | string) => Promise<string[]>;

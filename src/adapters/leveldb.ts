@@ -9,6 +9,7 @@ import { Proof, ProofType } from '../models/proof';
 import { User } from '../models/user';
 import { EmptyUserMeta, UserMeta, UserMetaKey } from '../models/usermeta';
 import { deriveChatId } from '../utils/chat';
+import { Filter } from '../utils/filters';
 import {
   AnyMessage,
   Chat,
@@ -30,7 +31,6 @@ import {
   ProfileMessageSubType,
 } from '../utils/message';
 import { GenericDBAdapterInterface } from './db';
-import {Filter} from "../utils/filters";
 
 const keys = {
   APP: {
@@ -879,11 +879,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return posts;
   }
 
-  async getHomefeed(
-    filter: Filter,
-    limit = -1,
-    offset?: number | string
-  ): Promise<Post[]> {
+  async getHomefeed(filter: Filter, limit = -1, offset?: number | string): Promise<Post[]> {
     const options: any = { reverse: true, valueEncoding: 'json' };
 
     if (typeof offset === 'string') {
