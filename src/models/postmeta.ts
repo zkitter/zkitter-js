@@ -15,11 +15,11 @@ export type PostMeta = {
 };
 
 export const EmptyPostMeta = (): PostMeta => ({
-  like: 0,
-  reply: 0,
-  repost: 0,
   block: 0,
   global: false,
-  moderation: null,
   groupId: '',
+  like: 0,
+  moderation: null,
+  reply: 0,
+  repost: 0,
 });

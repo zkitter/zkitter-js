@@ -1,13 +1,13 @@
-import { Command } from 'commander';
-import { initZkitter } from '../utils/cli';
 import chalk from 'chalk';
+import { Command } from 'commander';
+import moment from 'moment';
 import { User } from '../models/user';
 import { UserMeta } from '../models/usermeta';
-import moment from 'moment';
 import { Zkitter } from '../services';
+import { initZkitter } from '../utils/cli';
 import { Post } from '../utils/message';
 
-const { yellowBright, red, blue, magenta, cyan, yellow, green } = chalk;
+const { blue, cyan, green, magenta, red, yellow, yellowBright } = chalk;
 
 export function timeline(program: Command) {
   program

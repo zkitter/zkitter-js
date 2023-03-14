@@ -1,9 +1,9 @@
 /* eslint-disable import/export */
 /* eslint-disable @typescript-eslint/no-namespace */
 
-import { encodeMessage, decodeMessage, message } from 'protons-runtime';
-import type { Uint8ArrayList } from 'uint8arraylist';
+import { decodeMessage, encodeMessage, message } from 'protons-runtime';
 import type { Codec } from 'protons-runtime';
+import type { Uint8ArrayList } from 'uint8arraylist';
 
 export interface Message {
   timestamp: bigint;
@@ -49,9 +49,9 @@ export namespace Message {
         },
         (reader, length) => {
           const obj: any = {
-            timestamp: BigInt(0),
             data: new Uint8Array(0),
             proof: new Uint8Array(0),
+            timestamp: BigInt(0),
           };
 
           const end = length == null ? reader.len : reader.pos + length;

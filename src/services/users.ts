@@ -1,13 +1,13 @@
-import { GenericService } from '../utils/svc';
+import { ConstructorOptions } from 'eventemitter2';
 import Web3 from 'web3';
 import { provider } from 'web3-core';
-import { GenericDBAdapterInterface } from '../adapters/db';
-import { arbRegistrarABI } from '../utils/abi';
 import { Contract } from 'web3-eth-contract';
+import { GenericDBAdapterInterface } from '../adapters/db';
 import { User } from '../models/user';
 import { UserMeta } from '../models/usermeta';
-import { ConstructorOptions } from 'eventemitter2';
+import { arbRegistrarABI } from '../utils/abi';
 import mutexify from '../utils/mux';
+import { GenericService } from '../utils/svc';
 
 export const ARBITRUM_REGISTRAR_ADDRESS = '0x6b0a11F9aA5aa275f16e44e1D479A59dd00abE58';
 
@@ -17,7 +17,7 @@ export enum UserServiceEvents {
   InvalidEventData = 'Users.InvalidEventData',
 }
 
-const DEFAULT_WATCH_INTERVAL = 1000 * 15;
+const DEFAULT_WATCH_INTERVAL = 1000 * 60;
 
 export class UserService extends GenericService {
   web3: Web3;
@@ -64,9 +64,9 @@ export class UserService extends GenericService {
     const block = await this.getBlock('latest');
 
     return {
-      totalUsers: await this.db.getUserCount(),
       lastBlockScanned: lastBlock,
       latestBlock: block.number,
+      totalUsers: await this.db.getUserCount(),
     };
   }
 
@@ -125,8 +125,8 @@ export class UserService extends GenericService {
 
     const user: User = {
       address: account,
-      pubkey,
       joinedAt: new Date(Number(block.timestamp) * 1000),
+      pubkey,
       tx: event.transactionHash,
       type: 'arbitrum',
     };
@@ -159,8 +159,8 @@ export class UserService extends GenericService {
 
     this.emit(UserServiceEvents.ArbitrumSynced, {
       fromBlock: lastBlock,
-      toBlock: toBlock,
       latest: block.number,
+      toBlock: toBlock,
     });
 
     if (block.number > toBlock) {

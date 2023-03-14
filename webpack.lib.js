@@ -39,13 +39,6 @@ module.exports = [
     },
     target: 'node',
     devtool: 'source-map',
-    // externals: [nodeExternals()],
-    // experiments: {
-    //     asyncWebAssembly: false,
-    //     // lazyCompilation: true,
-    //     syncWebAssembly: true,
-    //     topLevelAwait: true,
-    // },
     resolve: {
       extensions: ['.ts', '.js', '.png', '.svg', '.wasm'],
     },

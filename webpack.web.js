@@ -77,7 +77,7 @@ module.exports = [
     devtool: 'source-map',
     resolve: {
       extensions: ['.ts', '.tsx', '.js', '.jsx', '.png', '.svg'],
-      modules: [path.resolve('./node_modules'), path.resolve(__dirname, compilerOptions.baseUrl)],
+      // modules: [path.resolve('./node_modules'), path.resolve(__dirname, compilerOptions.baseUrl)],
       fallback: {
         browserify: require.resolve('browserify'),
         stream: require.resolve('stream-browserify'),

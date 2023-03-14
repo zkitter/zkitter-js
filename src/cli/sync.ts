@@ -1,8 +1,8 @@
 import { Command } from 'commander';
-import { initZkitter } from '../utils/cli';
 import { ZkitterEvents } from '../services';
-import { debug, success } from '../utils/logger';
 import { UserServiceEvents } from '../services/users';
+import { initZkitter } from '../utils/cli';
+import { debug, success } from '../utils/logger';
 
 export function sync(program: Command) {
   program
@@ -21,7 +21,7 @@ export function sync(program: Command) {
       let newMsgs = 0;
 
       zkitter.on(UserServiceEvents.ArbitrumSynced, data => {
-        const { toBlock, fromBlock, latest } = data;
+        const { fromBlock, latest, toBlock } = data;
         const completion = ((fromBlock / latest) * 100).toFixed(2);
         success(
           `Synced with Arbitrum Mainnet from block #${fromBlock} to #${toBlock}(${completion}%)`

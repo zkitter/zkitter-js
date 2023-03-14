@@ -36,7 +36,7 @@ export const hexToArrayBuf = (hex: string): ArrayBuffer => {
   return hexToUintArray(hex).buffer;
 };
 
-export const toBigInt = (value: string | number): BigInt => {
+export const toBigInt = (value: string | number): bigint => {
   if (typeof value === 'number') {
     return BigInt(value);
   }
