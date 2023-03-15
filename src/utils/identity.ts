@@ -3,6 +3,20 @@ import EC from 'elliptic';
 import { sha256, signWithP256 } from './crypto';
 import { arrayBufToBase64UrlEncode, hexToArrayBuf } from './encoding';
 
+export type Identity = ECDSAIdentity | GroupIdentity;
+
+type ECDSAIdentity = {
+  type: 'ecdsa';
+  address: string;
+  privateKey: string;
+};
+
+type GroupIdentity = {
+  type: 'zk';
+  groupId: string;
+  zkIdentity: ZkIdentity;
+};
+
 export const generateIdentity = async (
   nonce = 0,
   signFn: (dataToSign: string) => Promise<string>
@@ -10,17 +24,19 @@ export const generateIdentity = async (
   const signedMessage = await signFn(
     `Sign this message to generate a GUN key pair with key nonce: ${nonce}`
   );
-  return _generateGunKeyPair(signedMessage);
+  return generateP256FromSeed(signedMessage);
 };
 
-const _generateGunKeyPair = async (seed: string): Promise<{ pub: string; priv: string }> => {
+export const generateP256FromSeed = async (
+  seed: string
+): Promise<{ pub: string; priv: string }> => {
   const hashBuffer = Buffer.from(await sha256(seed), 'hex');
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return await generateGunKeyPairFromHex(hashHex);
+  return await generateP256FromHex(hashHex);
 };
 
-const generateGunKeyPairFromHex = async (
+export const generateP256FromHex = async (
   hashHex: string
 ): Promise<{ pub: string; priv: string }> => {
   const ec = new EC.ec('p256');
@@ -50,14 +66,14 @@ export const generateZKIdentityWithP256 = async (
 
 export const generateECDHWithP256 = async (
   base64PrivateKey: string,
-  nonce = 0
+  nonce: number | string = 0
 ): Promise<{ pub: string; priv: string }> => {
   const ecdhseed = await signWithP256(base64PrivateKey, `signing for ecdh - ${nonce}`);
   const ecdhHex = await sha256(ecdhseed);
-  return generateECDHKeyPairFromhex(ecdhHex);
+  return generateECDHKeyPairFromHex(ecdhHex);
 };
 
-export const generateECDHKeyPairFromhex = async (
+export const generateECDHKeyPairFromHex = async (
   hashHex: string
 ): Promise<{ pub: string; priv: string }> => {
   const ec = new EC.ec('curve25519');
@@ -69,4 +85,11 @@ export const generateECDHKeyPairFromhex = async (
     priv: '0x' + privhex,
     pub: '0x' + pubhex,
   };
+};
+export const generateECDHKeyPairFromZKIdentity = async (
+  zkIdentity: ZkIdentity,
+  nonce: number | string = 0
+): Promise<{ pub: string; priv: string }> => {
+  const p256 = await generateP256FromSeed(zkIdentity.serializeIdentity());
+  return generateECDHWithP256(p256.priv, nonce);
 };

@@ -142,6 +142,12 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     });
   }
 
+  savedChatECDHDB(addressOrIdCommitment: string) {
+    return this.db.sublevel<string, string>(addressOrIdCommitment + '/savedChatECDH', {
+      valueEncoding: 'json',
+    });
+  }
+
   threadDB(threadHash: string) {
     return this.db.sublevel<string, string>(threadHash + '/replies', {
       valueEncoding: 'json',
@@ -645,9 +651,10 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       throw AlreadyExistError;
     }
 
-    const { receiverECDH, senderECDH } = chat.payload;
+    const { receiverECDH, senderECDH, senderSeed } = chat.payload;
 
     const chatId = await deriveChatId(chat.payload.receiverECDH, chat.payload.senderECDH);
+
     const senderMeta = await this.chatMetaDB(chat.payload.senderECDH)
       .get(chatId)
       .catch(() => null);
@@ -672,7 +679,6 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         key: charwise.encode(chat.createdAt.getTime()),
         sublevel: this.chatDB(chatId),
         type: 'put',
-        // @ts-ignore
         value: json.hash,
       },
     ];
@@ -686,6 +692,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
           chatId,
           receiverECDH,
           senderECDH,
+          senderSeed,
           type: chat.subtype,
         },
       });
@@ -700,6 +707,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
           chatId,
           receiverECDH,
           senderECDH,
+          senderSeed,
           type: chat.subtype,
         },
       });
@@ -835,6 +843,17 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     await this.db.batch(operations);
 
     return post;
+  }
+
+  async saveChatECDH(addressOrIdCommitment: string, ecdh: string) {
+    const db = this.savedChatECDHDB(addressOrIdCommitment);
+    const existing = await db.get(ecdh).catch(() => null);
+
+    if (!existing) {
+      await db.put(ecdh, ecdh);
+    }
+
+    return ecdh;
   }
 
   async getPosts(limit?: number, offset?: number | string): Promise<Post[]> {
@@ -1276,6 +1295,23 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     }
 
     return chatMetas;
+  }
+
+  async getChatECDHByUser(addressOrIdCommitment: string): Promise<string[]> {
+    const options: any = { valueEncoding: 'json' };
+    const ecdhs: string[] = [];
+
+    for await (const value of this.savedChatECDHDB(addressOrIdCommitment).values(options)) {
+      ecdhs.push(value);
+    }
+
+    return ecdhs;
+  }
+
+  async getChatMeta(ecdh: string, chatId: string): Promise<ChatMeta | null> {
+    return this.chatMetaDB(ecdh)
+      .get(chatId)
+      .catch(() => null);
   }
 
   async getChatMessages(chatId: string, limit?: number, offset?: number | string): Promise<Chat[]> {

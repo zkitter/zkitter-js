@@ -7,4 +7,5 @@ export type DirectMessageChatMeta = {
   chatId: string;
   receiverECDH: string;
   senderECDH: string;
+  senderSeed: string;
 };

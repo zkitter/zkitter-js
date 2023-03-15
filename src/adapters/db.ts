@@ -26,6 +26,7 @@ export interface GenericDBAdapterInterface {
   insertModeration: (moderation: Moderation, proof: Proof) => Promise<Moderation | null>;
   insertConnection: (connection: Connection, proof: Proof) => Promise<Connection | null>;
   insertProfile: (profile: Profile, proof: Proof) => Promise<Profile | null>;
+  saveChatECDH: (addressOrIdCommitment: string, ecdh: string) => Promise<string>;
   getMessagesByUser: (
     address: string,
     limit?: number,
@@ -45,6 +46,8 @@ export interface GenericDBAdapterInterface {
     limit?: number,
     offset?: number | string
   ) => Promise<Connection[]>;
+  getChatECDHByUser: (addressOrIdCommitment: string) => Promise<string[]>;
   getChatByECDH: (ecdh: string) => Promise<ChatMeta[]>;
+  getChatMeta: (ecdh: string, chatId: string) => Promise<ChatMeta | null>;
   getChatMessages: (chatId: string, limit?: number, offset?: number | string) => Promise<Chat[]>;
 }

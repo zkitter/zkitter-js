@@ -20,7 +20,8 @@ export * as Crypto from './utils/crypto';
 export * as Utils from './utils/encoding';
 export { Filter, type FilterOptions } from './utils/filters';
 export {
-  generateECDHKeyPairFromhex,
+  generateECDHKeyPairFromHex,
+  generateECDHKeyPairFromZKIdentity,
   generateECDHWithP256,
   generateIdentity,
   generateZkIdentityFromHex,

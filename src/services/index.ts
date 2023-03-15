@@ -13,9 +13,17 @@ import { PostMeta } from '../models/postmeta';
 import { Proof } from '../models/proof';
 import { User } from '../models/user';
 import { UserMeta } from '../models/usermeta';
+import { deriveChatId } from '../utils/chat';
+import { decrypt, deriveSharedSecret, encrypt, randomBytes } from '../utils/crypto';
 import { Filter, FilterOptions } from '../utils/filters';
 import {
+  generateECDHKeyPairFromZKIdentity,
+  generateECDHWithP256,
+  Identity,
+} from '../utils/identity';
+import {
   Chat,
+  ChatMessageSubType,
   Connection,
   Message as ZkitterMessage,
   Message,
@@ -23,6 +31,7 @@ import {
   Moderation,
   parseMessageId,
   Post,
+  PostMessageSubType,
   Profile,
 } from '../utils/message';
 import { GenericService } from '../utils/svc';
@@ -290,8 +299,50 @@ export class Zkitter extends GenericService {
     return this.services.chats.getChatByECDH(ecdh);
   }
 
-  async getChatMessages(chatId: string, limit?: number, offset?: number | string): Promise<Chat[]> {
-    return this.services.chats.getChatMessages(chatId, limit, offset);
+  async getChatByUser(addressOrIdCommitment: string): Promise<ChatMeta[]> {
+    const ecdhs = await this.db.getChatECDHByUser(addressOrIdCommitment);
+    let chatMetas: ChatMeta[] = [];
+
+    for (let i = 0; i < ecdhs.length; i++) {
+      const metas = await this.db.getChatByECDH(ecdhs[i]);
+      chatMetas = chatMetas.concat(metas);
+    }
+
+    return chatMetas;
+  }
+
+  async getChatMessages(
+    chatId: string,
+    limit?: number,
+    offset?: number | string,
+    identity?: Identity
+  ): Promise<Chat[]> {
+    const chats = await this.services.chats.getChatMessages(chatId, limit, offset);
+    let sharedSecret = '';
+
+    if (identity?.type === 'zk') {
+      const chatMetas = await this.getChatByUser(
+        '0x' + identity.zkIdentity.genIdentityCommitment().toString(16)
+      );
+      const [chatMeta] = chatMetas.filter(meta => meta.chatId === chatId);
+      const ecdhSeed = chatMeta?.senderSeed;
+      const ecdh = await generateECDHKeyPairFromZKIdentity(identity.zkIdentity, ecdhSeed);
+      sharedSecret = await deriveSharedSecret(chatMeta.receiverECDH, ecdh.priv);
+    } else if (identity?.type === 'ecdsa') {
+      const chatMetas = await this.getChatByUser(identity.address);
+      const [chatMeta] = chatMetas.filter(meta => meta.chatId === chatId);
+      const ecdh = await generateECDHWithP256(identity.privateKey, 0);
+      sharedSecret = await deriveSharedSecret(chatMeta.receiverECDH, ecdh.priv);
+    }
+
+    if (sharedSecret) {
+      return chats.map(chat => {
+        chat.payload.content = decrypt(chat.payload.encryptedContent, sharedSecret);
+        return chat;
+      });
+    }
+
+    return chats;
   }
 
   private async insert(msg: Message, proof: Proof) {
@@ -463,6 +514,134 @@ export class Zkitter extends GenericService {
   }
 
   async publish(message: ZkitterMessage, proof: Proof) {
-    return this.services.pubsub.publish(message, proof).then(() => this.insert(message, proof));
+    await this.services.pubsub.publish(message, proof);
+    await this.insert(message, proof);
+    return [message, proof];
   }
+
+  authorize = async (identity: Identity) => {
+    const creator = identity.type === 'ecdsa' ? identity.address : '';
+    const ecdhSeed = identity.type === 'zk' ? await randomBytes() : '';
+    const ecdh =
+      identity.type === 'ecdsa'
+        ? await generateECDHWithP256(identity.privateKey, 0)
+        : await generateECDHKeyPairFromZKIdentity(identity.zkIdentity, ecdhSeed);
+
+    const createProof = (hash: string) => {
+      return this.createProof({
+        address: identity.type === 'ecdsa' ? identity.address : undefined,
+        groupId: identity.type === 'zk' ? identity.groupId : undefined,
+        hash,
+        privateKey: identity.type === 'ecdsa' ? identity.privateKey : undefined,
+        zkIdentity: identity.type === 'zk' ? identity.zkIdentity : undefined,
+      });
+    };
+
+    return {
+      comment: async ({
+        attachment,
+        content,
+        reference,
+      }: {
+        content: string;
+        reference: string;
+        attachment?: string;
+      }) => {
+        const post = new Post({
+          creator,
+          payload: {
+            attachment,
+            content: content,
+            ecdh: ecdh.pub,
+            ecdhSeed,
+            reference,
+          },
+          subtype: PostMessageSubType.Default,
+          type: MessageType.Post,
+        });
+
+        const proof = await createProof(post.hash());
+
+        await this.publish(post, proof);
+
+        if (identity.type === 'zk') {
+          await this.db.saveChatECDH(
+            '0x' + identity.zkIdentity.genIdentityCommitment().toString(16),
+            ecdh.pub
+          );
+        }
+
+        return [post, proof];
+      },
+
+      directMessage: async ({
+        content,
+        ecdh: receiverECDH,
+        seedOverride,
+      }: {
+        content: string;
+        ecdh: string;
+        seedOverride?: string;
+      }) => {
+        const ecdhSeed = identity.type === 'zk' ? seedOverride || (await randomBytes()) : undefined;
+        const senderECDH =
+          identity.type === 'ecdsa'
+            ? await generateECDHWithP256(identity.privateKey, 0)
+            : await generateECDHKeyPairFromZKIdentity(identity.zkIdentity, ecdhSeed);
+        const sharedKey = await deriveSharedSecret(receiverECDH, ecdh.priv);
+
+        const chat = new Chat({
+          creator,
+          payload: {
+            encryptedContent: await encrypt(content, sharedKey),
+            receiverECDH,
+            senderECDH: senderECDH.pub,
+            senderSeed: ecdhSeed,
+          },
+          subtype: ChatMessageSubType.Direct,
+          type: MessageType.Chat,
+        });
+
+        const proof = await createProof(chat.hash());
+
+        await this.publish(chat, proof);
+
+        if (identity.type === 'zk') {
+          await this.db.saveChatECDH(
+            '0x' + identity.zkIdentity.genIdentityCommitment().toString(16),
+            senderECDH.pub
+          );
+        }
+
+        return [chat, proof];
+      },
+
+      write: async ({ attachment, content }: { content: string; attachment?: string }) => {
+        const post = new Post({
+          creator,
+          payload: {
+            attachment: attachment,
+            content: content,
+            ecdh: identity.type === 'zk' ? ecdh.pub : '',
+            ecdhSeed: identity.type === 'zk' ? ecdhSeed : '',
+          },
+          subtype: PostMessageSubType.Default,
+          type: MessageType.Post,
+        });
+
+        const proof = await createProof(post.hash());
+
+        await this.publish(post, proof);
+
+        if (identity.type === 'zk') {
+          await this.db.saveChatECDH(
+            '0x' + identity.zkIdentity.genIdentityCommitment().toString(16),
+            ecdh.pub
+          );
+        }
+
+        return [post, proof];
+      },
+    };
+  };
 }

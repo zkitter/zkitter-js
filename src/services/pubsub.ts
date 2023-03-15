@@ -7,6 +7,7 @@ import { Message } from '../models/message';
 import { Proof, ProofType } from '../models/proof';
 import { sha256, signWithP256, verifySignatureP256 } from '../utils/crypto';
 import { Filter } from '../utils/filters';
+import { generateZKIdentityWithP256 } from '../utils/identity';
 import {
   Chat,
   ChatMessageSubType,
@@ -136,9 +137,7 @@ export class PubsubService extends GenericService {
     let identity = zkIdentity;
 
     if (!address && privateKey) {
-      const zkseed = await signWithP256(privateKey, 'signing for zk identity - 0');
-      const zkHex = await sha256(zkseed);
-      identity = new ZkIdentity(Strategy.MESSAGE, zkHex);
+      identity = await generateZKIdentityWithP256(privateKey, 0);
     }
 
     if (address && privateKey) {

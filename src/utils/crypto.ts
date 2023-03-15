@@ -55,3 +55,7 @@ export function decrypt(ciphertext: string, password: string): string {
   const bytes = CryptoJS.AES.decrypt(ciphertext, password);
   return bytes.toString(CryptoJS.enc.Utf8);
 }
+
+export function randomBytes(size = 16): string {
+  return crypto.randomBytes(size).toString('hex');
+}
