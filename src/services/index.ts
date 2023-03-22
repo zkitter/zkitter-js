@@ -320,26 +320,33 @@ export class Zkitter extends GenericService {
     const chats = await this.services.chats.getChatMessages(chatId, limit, offset);
     let sharedSecret = '';
 
-    if (identity?.type === 'zk') {
-      const chatMetas = await this.getChatByUser(
-        '0x' + identity.zkIdentity.genIdentityCommitment().toString(16)
-      );
-      const [chatMeta] = chatMetas.filter(meta => meta.chatId === chatId);
-      const ecdhSeed = chatMeta?.senderSeed;
-      const ecdh = await generateECDHKeyPairFromZKIdentity(identity.zkIdentity, ecdhSeed);
-      sharedSecret = await deriveSharedSecret(chatMeta.receiverECDH, ecdh.priv);
-    } else if (identity?.type === 'ecdsa') {
-      const chatMetas = await this.getChatByUser(identity.address);
-      const [chatMeta] = chatMetas.filter(meta => meta.chatId === chatId);
-      const ecdh = await generateECDHWithP256(identity.privateKey, 0);
-      sharedSecret = await deriveSharedSecret(chatMeta.receiverECDH, ecdh.priv);
-    }
+    if (chats.length) {
+      if (identity?.type === 'zk') {
+        const chatMetas = await this.getChatByUser(
+          '0x' + identity.zkIdentity.genIdentityCommitment().toString(16)
+        );
+        const [chatMeta] = chatMetas.filter(meta => meta.chatId === chatId);
+        const ecdhSeed = chatMeta?.senderSeed;
+        const ecdh = await generateECDHKeyPairFromZKIdentity(identity.zkIdentity, ecdhSeed);
+        const receiverECDH = chatMeta?.receiverECDH !== ecdh.pub ? chatMeta?.receiverECDH : chatMeta?.senderECDH;
+        sharedSecret = receiverECDH ? await deriveSharedSecret(receiverECDH, ecdh.priv) : '';
+      } else if (identity?.type === 'ecdsa') {
+        const ecdh = await generateECDHWithP256(identity.privateKey, 0);
+        const chatMeta = await this.db.getChatMeta(ecdh.pub, chatId);
+        const receiverECDH = chatMeta?.receiverECDH !== ecdh.pub ? chatMeta?.receiverECDH : chatMeta?.senderECDH;
+        sharedSecret = receiverECDH ? await deriveSharedSecret(receiverECDH, ecdh.priv) : '';
+      }
 
-    if (sharedSecret) {
-      return chats.map(chat => {
-        chat.payload.content = decrypt(chat.payload.encryptedContent, sharedSecret);
-        return chat;
-      });
+      if (sharedSecret) {
+        return chats.map(chat => {
+          try {
+            chat.payload.content = decrypt(chat.payload.encryptedContent, sharedSecret);
+          } catch (e) {
+
+          }
+          return chat;
+        });
+      }
     }
 
     return chats;
@@ -521,11 +528,6 @@ export class Zkitter extends GenericService {
 
   authorize = async (identity: Identity) => {
     const creator = identity.type === 'ecdsa' ? identity.address : '';
-    const ecdhSeed = identity.type === 'zk' ? await randomBytes() : '';
-    const ecdh =
-      identity.type === 'ecdsa'
-        ? await generateECDHWithP256(identity.privateKey, 0)
-        : await generateECDHKeyPairFromZKIdentity(identity.zkIdentity, ecdhSeed);
 
     const createProof = (hash: string) => {
       return this.createProof({
@@ -542,17 +544,25 @@ export class Zkitter extends GenericService {
         attachment,
         content,
         reference,
+        seedOverride,
       }: {
         content: string;
         reference: string;
         attachment?: string;
+        seedOverride?: string;
       }) => {
+        const ecdhSeed = identity.type === 'zk' ? seedOverride || (await randomBytes()) : undefined;
+        const senderECDH =
+          identity.type === 'ecdsa'
+            ? await generateECDHWithP256(identity.privateKey, 0)
+            : await generateECDHKeyPairFromZKIdentity(identity.zkIdentity, ecdhSeed);
+
         const post = new Post({
           creator,
           payload: {
             attachment,
             content: content,
-            ecdh: ecdh.pub,
+            ecdh: senderECDH.pub,
             ecdhSeed,
             reference,
           },
@@ -567,8 +577,10 @@ export class Zkitter extends GenericService {
         if (identity.type === 'zk') {
           await this.db.saveChatECDH(
             '0x' + identity.zkIdentity.genIdentityCommitment().toString(16),
-            ecdh.pub
+            senderECDH.pub
           );
+        } else if (identity.type === 'ecdsa') {
+          await this.db.saveChatECDH(identity.address, senderECDH.pub);
         }
 
         return [post, proof];
@@ -588,7 +600,7 @@ export class Zkitter extends GenericService {
           identity.type === 'ecdsa'
             ? await generateECDHWithP256(identity.privateKey, 0)
             : await generateECDHKeyPairFromZKIdentity(identity.zkIdentity, ecdhSeed);
-        const sharedKey = await deriveSharedSecret(receiverECDH, ecdh.priv);
+        const sharedKey = await deriveSharedSecret(receiverECDH, senderECDH.priv);
 
         const chat = new Chat({
           creator,
@@ -611,18 +623,26 @@ export class Zkitter extends GenericService {
             '0x' + identity.zkIdentity.genIdentityCommitment().toString(16),
             senderECDH.pub
           );
+        } else if (identity.type === 'ecdsa') {
+          await this.db.saveChatECDH(identity.address, senderECDH.pub);
         }
 
         return [chat, proof];
       },
 
-      write: async ({ attachment, content }: { content: string; attachment?: string }) => {
+      write: async ({ attachment, content, seedOverride }: { content: string; attachment?: string; seedOverride?: string; }) => {
+        const ecdhSeed = identity.type === 'zk' ? seedOverride || (await randomBytes()) : undefined;
+        const senderECDH =
+          identity.type === 'ecdsa'
+            ? await generateECDHWithP256(identity.privateKey, 0)
+            : await generateECDHKeyPairFromZKIdentity(identity.zkIdentity, ecdhSeed);
+
         const post = new Post({
           creator,
           payload: {
             attachment: attachment,
             content: content,
-            ecdh: identity.type === 'zk' ? ecdh.pub : '',
+            ecdh: identity.type === 'zk' ? senderECDH.pub : '',
             ecdhSeed: identity.type === 'zk' ? ecdhSeed : '',
           },
           subtype: PostMessageSubType.Default,
@@ -636,8 +656,10 @@ export class Zkitter extends GenericService {
         if (identity.type === 'zk') {
           await this.db.saveChatECDH(
             '0x' + identity.zkIdentity.genIdentityCommitment().toString(16),
-            ecdh.pub
+            senderECDH.pub
           );
+        } else if (identity.type === 'ecdsa') {
+          await this.db.saveChatECDH(identity.address, senderECDH.pub);
         }
 
         return [post, proof];

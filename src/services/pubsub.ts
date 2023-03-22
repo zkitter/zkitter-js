@@ -106,12 +106,18 @@ export class PubsubService extends GenericService {
         return !!user?.pubkey && verifySignatureP256(user.pubkey, hash, proof.signature);
       case ProofType.rln:
         const { groupId, proof: fullProof } = proof;
-        if (groupId) {
-          await this.groups.sync(groupId);
-        }
-        const group = await this.groups
+
+        let group = await this.groups
           .getGroupByRoot(fullProof.publicSignals.merkleRoot as string)
           .catch(() => null);
+
+        if (!group && groupId) {
+          await this.groups.sync(groupId);
+          group = await this.groups
+            .getGroupByRoot(fullProof.publicSignals.merkleRoot as string)
+            .catch(() => null)
+        }
+
         return verifyRLNProof(hash, group, fullProof);
       default:
         return false;

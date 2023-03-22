@@ -82,8 +82,8 @@ export const generateECDHKeyPairFromHex = async (
   const privhex = key.getPrivate().toString('hex');
 
   return {
-    priv: '0x' + privhex,
-    pub: '0x' + pubhex,
+    priv: privhex,
+    pub: pubhex,
   };
 };
 export const generateECDHKeyPairFromZKIdentity = async (
