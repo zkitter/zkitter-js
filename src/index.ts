@@ -28,17 +28,23 @@ export {
   generateZKIdentityWithP256,
 } from './utils/identity';
 export { Chat, Connection, Message, Moderation, Post, Profile } from './utils/message';
-export type {
-  ChatJSON,
+export {
+  type ConnectionJSON,
+  type ChatJSON,
+  type ModerationJSON,
+  type PostJSON,
+  type ProfileJSON,
+  type PostMessageOption,
+  type ChatMessageOption,
+  type ProfileMessageOption,
+  type ConnectionMessageOption,
+  type ModerationMessageOption,
   ChatMessageSubType,
-  ConnectionJSON,
   ConnectionMessageSubType,
   MessageType,
-  ModerationJSON,
   ModerationMessageSubType,
-  PostJSON,
   PostMessageSubType,
-  ProfileJSON,
   ProfileMessageSubType,
+  parseMessageId,
 } from './utils/message';
 export { createRLNProof } from './utils/zk';
