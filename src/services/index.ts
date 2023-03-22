@@ -328,12 +328,14 @@ export class Zkitter extends GenericService {
         const [chatMeta] = chatMetas.filter(meta => meta.chatId === chatId);
         const ecdhSeed = chatMeta?.senderSeed;
         const ecdh = await generateECDHKeyPairFromZKIdentity(identity.zkIdentity, ecdhSeed);
-        const receiverECDH = chatMeta?.receiverECDH !== ecdh.pub ? chatMeta?.receiverECDH : chatMeta?.senderECDH;
+        const receiverECDH =
+          chatMeta?.receiverECDH !== ecdh.pub ? chatMeta?.receiverECDH : chatMeta?.senderECDH;
         sharedSecret = receiverECDH ? await deriveSharedSecret(receiverECDH, ecdh.priv) : '';
       } else if (identity?.type === 'ecdsa') {
         const ecdh = await generateECDHWithP256(identity.privateKey, 0);
         const chatMeta = await this.db.getChatMeta(ecdh.pub, chatId);
-        const receiverECDH = chatMeta?.receiverECDH !== ecdh.pub ? chatMeta?.receiverECDH : chatMeta?.senderECDH;
+        const receiverECDH =
+          chatMeta?.receiverECDH !== ecdh.pub ? chatMeta?.receiverECDH : chatMeta?.senderECDH;
         sharedSecret = receiverECDH ? await deriveSharedSecret(receiverECDH, ecdh.priv) : '';
       }
 
@@ -341,9 +343,7 @@ export class Zkitter extends GenericService {
         return chats.map(chat => {
           try {
             chat.payload.content = decrypt(chat.payload.encryptedContent, sharedSecret);
-          } catch (e) {
-
-          }
+          } catch (e) {}
           return chat;
         });
       }
@@ -630,7 +630,15 @@ export class Zkitter extends GenericService {
         return [chat, proof];
       },
 
-      write: async ({ attachment, content, seedOverride }: { content: string; attachment?: string; seedOverride?: string; }) => {
+      write: async ({
+        attachment,
+        content,
+        seedOverride,
+      }: {
+        content: string;
+        attachment?: string;
+        seedOverride?: string;
+      }) => {
         const ecdhSeed = identity.type === 'zk' ? seedOverride || (await randomBytes()) : undefined;
         const senderECDH =
           identity.type === 'ecdsa'

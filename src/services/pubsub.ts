@@ -115,7 +115,7 @@ export class PubsubService extends GenericService {
           await this.groups.sync(groupId);
           group = await this.groups
             .getGroupByRoot(fullProof.publicSignals.merkleRoot as string)
-            .catch(() => null)
+            .catch(() => null);
         }
 
         return verifyRLNProof(hash, group, fullProof);
