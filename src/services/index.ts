@@ -562,8 +562,8 @@ export class Zkitter extends GenericService {
           payload: {
             attachment,
             content: content,
-            ecdh: senderECDH.pub,
-            ecdhSeed,
+            // ecdh: senderECDH.pub,
+            // ecdhSeed,
             reference,
           },
           subtype: PostMessageSubType.Default,
@@ -650,8 +650,8 @@ export class Zkitter extends GenericService {
           payload: {
             attachment: attachment,
             content: content,
-            ecdh: identity.type === 'zk' ? senderECDH.pub : '',
-            ecdhSeed: identity.type === 'zk' ? ecdhSeed : '',
+            // ecdh: identity.type === 'zk' ? senderECDH.pub : '',
+            // ecdhSeed: identity.type === 'zk' ? ecdhSeed : '',
           },
           subtype: PostMessageSubType.Default,
           type: MessageType.Post,

@@ -15,6 +15,7 @@ export type RLNProof = {
   type: ProofType.rln;
   proof: RLNFullProof;
   groupId: string;
+  ecdh?: string;
 };
 
 export type NullProof = {

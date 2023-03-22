@@ -7,7 +7,7 @@ import { Message } from '../models/message';
 import { Proof, ProofType } from '../models/proof';
 import { sha256, signWithP256, verifySignatureP256 } from '../utils/crypto';
 import { Filter } from '../utils/filters';
-import { generateZKIdentityWithP256 } from '../utils/identity';
+import {generateECDHKeyPairFromZKIdentity, generateZKIdentityWithP256} from '../utils/identity';
 import {
   Chat,
   ChatMessageSubType,
@@ -142,13 +142,12 @@ export class PubsubService extends GenericService {
     const { address, groupId, hash, privateKey, zkIdentity } = opts;
     let identity = zkIdentity;
 
-    if (!address && privateKey) {
-      identity = await generateZKIdentityWithP256(privateKey, 0);
-    }
-
     if (address && privateKey) {
       const sig = signWithP256(privateKey, hash);
-      return { signature: sig, type: ProofType.signature };
+      return {
+        signature: sig,
+        type: ProofType.signature,
+      };
     }
 
     if (identity) {
@@ -156,7 +155,14 @@ export class PubsubService extends GenericService {
       const idCommitmentHex = '0x' + identityCommitment.toString(16);
       const merklePath = await this.groups.getMerklePath(idCommitmentHex, groupId);
       const proof = await createRLNProof(hash, identity, merklePath);
-      return { groupId: groupId || '', proof, type: ProofType.rln };
+      const ecdh = await generateECDHKeyPairFromZKIdentity(identity, hash);
+
+      return {
+        groupId: groupId || '',
+        proof,
+        type: ProofType.rln,
+        ecdh: ecdh.pub,
+      };
     }
 
     throw new Error('invalid proof inputs');

@@ -98,8 +98,6 @@ export type PostMessagePayload = {
   content: string;
   reference: string;
   attachment: string;
-  ecdh: string;
-  ecdhSeed: string;
 };
 
 export type PostJSON = {
@@ -120,8 +118,6 @@ export type PostMessageOption = {
     content?: string;
     reference?: string;
     attachment?: string;
-    ecdh?: string;
-    ecdhSeed?: string;
   };
   hash?: string;
 } & MessageOption;
@@ -145,8 +141,6 @@ export class Post extends Message {
     const [content] = decodeString(d, 6, cb);
     const [reference] = decodeString(d, 3, cb);
     const [attachment] = decodeString(d, 3, cb);
-    const [ecdh] = decodeString(d, 3, cb);
-    const [ecdhSeed] = decodeString(d, 3, cb);
 
     return new Post({
       createdAt: new Date(createdAt),
@@ -154,8 +148,6 @@ export class Post extends Message {
       payload: {
         attachment,
         content,
-        ecdh,
-        ecdhSeed,
         reference,
         title,
         topic,
@@ -194,8 +186,6 @@ export class Post extends Message {
     this.payload = {
       attachment: opt.payload.attachment || '',
       content: opt.payload.content || '',
-      ecdh: opt.payload.ecdh || '',
-      ecdhSeed: opt.payload.ecdhSeed || '',
       reference: opt.payload.reference || '',
       title: opt.payload.title || '',
       topic: opt.payload.topic || '',
@@ -229,8 +219,6 @@ export class Post extends Message {
     const content = encodeString(this.payload.content, 6);
     const reference = encodeString(this.payload.reference, 3);
     const attachment = encodeString(this.payload.attachment, 3);
-    const ecdh = encodeString(this.payload.ecdh, 3);
-    const ecdhSeed = encodeString(this.payload.ecdhSeed, 3);
     return (
       type +
       subtype +
@@ -240,9 +228,7 @@ export class Post extends Message {
       title +
       content +
       reference +
-      attachment +
-      ecdh +
-      ecdhSeed
+      attachment
     );
   }
 }
