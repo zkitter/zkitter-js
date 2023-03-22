@@ -1,6 +1,7 @@
+import crypto from 'crypto';
+import CryptoJS from 'crypto-js';
 import EC from 'elliptic';
 import { base64ToArrayBuffer } from './encoding';
-import crypto from 'crypto';
 
 export const signWithP256 = (base64PrivateKey: string, data: string) => {
   const buff = base64ToArrayBuffer(base64PrivateKey);
@@ -24,6 +25,37 @@ export function verifySignatureP256(pubkey: string, data: string, signature: str
     Buffer.from(signature, 'hex').toJSON().data
   );
 }
-export const sha256 = async (data: string): Promise<string> => {
-  return crypto.createHash('sha256').update(data).digest('hex');
+export const sha256 = async (data: string | string[]): Promise<string> => {
+  let h = crypto.createHash('sha256');
+
+  if (typeof data === 'string') {
+    h = h.update(data);
+  } else {
+    data.forEach(d => {
+      h = h.update(d);
+    });
+  }
+
+  return h.digest('hex');
 };
+
+export const deriveSharedSecret = (receiverPubkey: string, senderPrivateKey: string): string => {
+  const ec = new EC.ec('curve25519');
+  const sendKey = ec.keyFromPrivate(senderPrivateKey, 'hex');
+  const receiverKey = ec.keyFromPublic(receiverPubkey, 'hex');
+  const shared = sendKey.derive(receiverKey.getPublic());
+  return shared.toString(16);
+};
+
+export function encrypt(text: string, password: string): string {
+  return CryptoJS.AES.encrypt(text, password).toString();
+}
+
+export function decrypt(ciphertext: string, password: string): string {
+  const bytes = CryptoJS.AES.decrypt(ciphertext, password);
+  return bytes.toString(CryptoJS.enc.Utf8);
+}
+
+export function randomBytes(size = 16): string {
+  return crypto.randomBytes(size).toString('hex');
+}

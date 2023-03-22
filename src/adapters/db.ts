@@ -1,9 +1,11 @@
-import { User } from '../models/user';
-import { AnyMessage, Connection, Message, Moderation, Post, Profile } from '../utils/message';
-import { PostMeta } from '../models/postmeta';
-import { UserMeta } from '../models/usermeta';
-import { Proof } from '../models/proof';
+import { ChatMeta } from '../models/chats';
 import { GroupMember } from '../models/group';
+import { PostMeta } from '../models/postmeta';
+import { Proof } from '../models/proof';
+import { User } from '../models/user';
+import { UserMeta } from '../models/usermeta';
+import { Filter } from '../utils/filters';
+import { AnyMessage, Chat, Connection, Message, Moderation, Post, Profile } from '../utils/message';
 
 export interface GenericDBAdapterInterface {
   getUserCount: () => Promise<number>;
@@ -20,9 +22,11 @@ export interface GenericDBAdapterInterface {
   getGroupMembers: (groupId: string, limit?: number, offset?: number | string) => Promise<string[]>;
   findGroupHash: (hash: string) => Promise<string | null>;
   insertPost: (post: Post, proof: Proof) => Promise<Post>;
+  insertChat: (chat: Chat, proof: Proof) => Promise<Chat>;
   insertModeration: (moderation: Moderation, proof: Proof) => Promise<Moderation | null>;
   insertConnection: (connection: Connection, proof: Proof) => Promise<Connection | null>;
   insertProfile: (profile: Profile, proof: Proof) => Promise<Profile | null>;
+  saveChatECDH: (addressOrIdCommitment: string, ecdh: string) => Promise<string>;
   getMessagesByUser: (
     address: string,
     limit?: number,
@@ -32,14 +36,7 @@ export interface GenericDBAdapterInterface {
   getPost: (hash: string) => Promise<Post | null>;
   getPosts: (limit?: number, offset?: number | string) => Promise<Post[]>;
   getFollowings: (address: string) => Promise<string[]>;
-  getHomefeed: (
-    filter: {
-      addresses: { [address: string]: true };
-      groups: { [groupId: string]: true };
-    },
-    limit?: number,
-    offset?: number | string
-  ) => Promise<Post[]>;
+  getHomefeed: (filter: Filter, limit?: number, offset?: number | string) => Promise<Post[]>;
   getUserPosts: (address: string, limit?: number, offset?: number | string) => Promise<Post[]>;
   getReplies: (hash: string, limit?: number, offset?: number | string) => Promise<Post[]>;
   getReposts: (hash: string, limit?: number, offset?: number | string) => Promise<string[]>;
@@ -49,4 +46,8 @@ export interface GenericDBAdapterInterface {
     limit?: number,
     offset?: number | string
   ) => Promise<Connection[]>;
+  getChatECDHByUser: (addressOrIdCommitment: string) => Promise<string[]>;
+  getChatByECDH: (ecdh: string) => Promise<ChatMeta[]>;
+  getChatMeta: (ecdh: string, chatId: string) => Promise<ChatMeta | null>;
+  getChatMessages: (chatId: string, limit?: number, offset?: number | string) => Promise<Chat[]>;
 }

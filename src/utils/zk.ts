@@ -1,7 +1,7 @@
 import { ZkIdentity } from '@zk-kit/identity';
 import { genExternalNullifier, RLN, RLNFullProof } from '@zk-kit/protocols';
-import { sha256 } from './crypto';
 import rlnVkey from '../../static/rln_vkey.json';
+import { sha256 } from './crypto';
 
 export const createRLNProof = async (hash: string, zkIdentity: ZkIdentity, merklePath: any) => {
   const identitySecretHash = zkIdentity.getSecretHash();

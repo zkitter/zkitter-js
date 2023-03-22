@@ -1,9 +1,10 @@
-import { GenericService } from '../utils/svc';
-import { GenericDBAdapterInterface } from '../adapters/db';
-import { Post } from '../utils/message';
-import { PostMeta } from '../models/postmeta';
 import { ConstructorOptions } from 'eventemitter2';
+import { GenericDBAdapterInterface } from '../adapters/db';
+import { PostMeta } from '../models/postmeta';
 import { Proof } from '../models/proof';
+import { Filter } from '../utils/filters';
+import { Post } from '../utils/message';
+import { GenericService } from '../utils/svc';
 
 export class PostService extends GenericService {
   db: GenericDBAdapterInterface;
@@ -33,14 +34,7 @@ export class PostService extends GenericService {
     return this.db.getPosts(limit, offset);
   }
 
-  async getHomefeed(
-    filter: {
-      addresses: { [address: string]: true };
-      groups: { [groupId: string]: true };
-    },
-    limit = -1,
-    offset?: number | string
-  ): Promise<Post[]> {
+  async getHomefeed(filter: Filter, limit = -1, offset?: number | string): Promise<Post[]> {
     return this.db.getHomefeed(filter, limit, offset);
   }
 

@@ -1,8 +1,8 @@
-import { GenericService } from '../utils/svc';
-import { GenericDBAdapterInterface } from '../adapters/db';
-import { Moderation } from '../utils/message';
 import { ConstructorOptions } from 'eventemitter2';
+import { GenericDBAdapterInterface } from '../adapters/db';
 import { Proof } from '../models/proof';
+import { Moderation } from '../utils/message';
+import { GenericService } from '../utils/svc';
 
 export class ModerationService extends GenericService {
   db: GenericDBAdapterInterface;

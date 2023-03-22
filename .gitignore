@@ -4,6 +4,8 @@ dist/
 .DS_Store
 .idea/
 db/
+zkitterdb/
 bin/
 *.log
 webdev/
+zkitterdb/

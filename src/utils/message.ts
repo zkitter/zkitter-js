@@ -6,6 +6,7 @@ export enum MessageType {
   Moderation = 'MODERATION',
   Profile = 'PROFILE',
   Connection = 'CONNECTION',
+  Chat = 'CHAT',
   File = 'FILE',
 }
 
@@ -15,7 +16,7 @@ export type MessageOption = {
   createdAt?: Date;
 };
 
-export type AnyMessage = Post | Moderation | Connection | Profile;
+export type AnyMessage = Post | Moderation | Connection | Profile | Chat;
 
 export class Message {
   type: MessageType;
@@ -35,6 +36,8 @@ export class Message {
         return MessageType.Profile;
       case 'MODERATION':
         return MessageType.Moderation;
+      case 'CHAT':
+        return MessageType.Chat;
       default:
         return null;
     }
@@ -53,6 +56,8 @@ export class Message {
         return Connection.fromHex(hex);
       case MessageType.Profile:
         return Profile.fromHex(hex);
+      case MessageType.Chat:
+        return Chat.fromHex(hex);
     }
 
     function cb(n: number) {
@@ -93,6 +98,8 @@ export type PostMessagePayload = {
   content: string;
   reference: string;
   attachment: string;
+  ecdh: string;
+  ecdhSeed: string;
 };
 
 export type PostJSON = {
@@ -113,6 +120,8 @@ export type PostMessageOption = {
     content?: string;
     reference?: string;
     attachment?: string;
+    ecdh?: string;
+    ecdhSeed?: string;
   };
   hash?: string;
 } & MessageOption;
@@ -136,19 +145,23 @@ export class Post extends Message {
     const [content] = decodeString(d, 6, cb);
     const [reference] = decodeString(d, 3, cb);
     const [attachment] = decodeString(d, 3, cb);
+    const [ecdh] = decodeString(d, 3, cb);
+    const [ecdhSeed] = decodeString(d, 3, cb);
 
     return new Post({
-      type: type as MessageType.Post,
-      subtype: subtype as PostMessageSubType,
-      creator,
       createdAt: new Date(createdAt),
+      creator,
       payload: {
-        topic,
-        title,
-        content,
-        reference,
         attachment,
+        content,
+        ecdh,
+        ecdhSeed,
+        reference,
+        title,
+        topic,
       },
+      subtype: subtype as PostMessageSubType,
+      type: type as MessageType.Post,
     });
 
     function cb(n: number) {
@@ -179,11 +192,13 @@ export class Post extends Message {
     this.tweetId = opt.type === MessageType._TWEET ? opt.hash : undefined;
     this.subtype = Post.getSubtype(opt.subtype);
     this.payload = {
-      topic: opt.payload.topic || '',
-      title: opt.payload.title || '',
-      content: opt.payload.content || '',
-      reference: opt.payload.reference || '',
       attachment: opt.payload.attachment || '',
+      content: opt.payload.content || '',
+      ecdh: opt.payload.ecdh || '',
+      ecdhSeed: opt.payload.ecdhSeed || '',
+      reference: opt.payload.reference || '',
+      title: opt.payload.title || '',
+      topic: opt.payload.topic || '',
     };
   }
 
@@ -195,12 +210,12 @@ export class Post extends Message {
   toJSON(): PostJSON {
     const hash = this.hash();
     return {
-      messageId: this.creator ? `${this.creator}/${hash}` : hash,
-      hash: hash,
-      type: this.type,
-      subtype: this.subtype,
       createdAt: this.createdAt.getTime(),
+      hash: hash,
+      messageId: this.creator ? `${this.creator}/${hash}` : hash,
       payload: this.payload,
+      subtype: this.subtype,
+      type: this.type,
     };
   }
 
@@ -214,7 +229,21 @@ export class Post extends Message {
     const content = encodeString(this.payload.content, 6);
     const reference = encodeString(this.payload.reference, 3);
     const attachment = encodeString(this.payload.attachment, 3);
-    return type + subtype + creator + createdAt + topic + title + content + reference + attachment;
+    const ecdh = encodeString(this.payload.ecdh, 3);
+    const ecdhSeed = encodeString(this.payload.ecdhSeed, 3);
+    return (
+      type +
+      subtype +
+      creator +
+      createdAt +
+      topic +
+      title +
+      content +
+      reference +
+      attachment +
+      ecdh +
+      ecdhSeed
+    );
   }
 }
 
@@ -263,13 +292,13 @@ export class Moderation extends Message {
     const [reference] = decodeString(d, 3, cb);
 
     return new Moderation({
-      type: type as MessageType.Moderation,
-      subtype: subtype as ModerationMessageSubType,
-      creator,
       createdAt: new Date(createdAt),
+      creator,
       payload: {
         reference,
       },
+      subtype: subtype as ModerationMessageSubType,
+      type: type as MessageType.Moderation,
     });
 
     function cb(n: number) {
@@ -312,12 +341,12 @@ export class Moderation extends Message {
   toJSON(): ModerationJSON {
     const hash = this.hash();
     return {
-      messageId: `${this.creator}/${hash}`,
-      hash: hash,
-      type: this.type,
-      subtype: this.subtype,
       createdAt: this.createdAt.getTime(),
+      hash: hash,
+      messageId: `${this.creator}/${hash}`,
       payload: this.payload,
+      subtype: this.subtype,
+      type: this.type,
     };
   }
 
@@ -376,13 +405,13 @@ export class Connection extends Message {
     const [name] = decodeString(d, 3, cb);
 
     return new Connection({
-      type: type as MessageType.Profile,
-      subtype: subtype as ConnectionMessageSubType,
-      creator,
       createdAt: new Date(createdAt),
+      creator,
       payload: {
         name,
       },
+      subtype: subtype as ConnectionMessageSubType,
+      type: type as MessageType.Profile,
     });
 
     function cb(n: number) {
@@ -421,12 +450,12 @@ export class Connection extends Message {
   toJSON(): ConnectionJSON {
     const hash = this.hash();
     return {
-      messageId: `${this.creator}/${hash}`,
-      hash: hash,
-      type: this.type,
-      subtype: this.subtype,
       createdAt: this.createdAt.getTime(),
+      hash: hash,
+      messageId: `${this.creator}/${hash}`,
       payload: this.payload,
+      subtype: this.subtype,
+      type: this.type,
     };
   }
 
@@ -490,14 +519,14 @@ export class Profile extends Message {
     const [value] = decodeString(d, 3, cb);
 
     return new Profile({
-      type: type as MessageType.Profile,
-      subtype: subtype as ProfileMessageSubType,
-      creator,
       createdAt: new Date(createdAt),
+      creator,
       payload: {
         key,
         value,
       },
+      subtype: subtype as ProfileMessageSubType,
+      type: type as MessageType.Profile,
     });
 
     function cb(n: number) {
@@ -545,12 +574,12 @@ export class Profile extends Message {
   toJSON(): ProfileJSON {
     const hash = this.hash();
     return {
-      messageId: `${this.creator}/${hash}`,
-      hash: hash,
-      type: this.type,
-      subtype: this.subtype,
       createdAt: this.createdAt.getTime(),
+      hash: hash,
+      messageId: `${this.creator}/${hash}`,
       payload: this.payload,
+      subtype: this.subtype,
+      type: this.type,
     };
   }
 
@@ -598,8 +627,8 @@ export function parseMessageId(id: string) {
 
   if (parsed.length > 2) {
     return {
-      hash: '',
       creator: '',
+      hash: '',
     };
   }
 
@@ -614,8 +643,8 @@ export function parseMessageId(id: string) {
 
   if (!hash || !HEX_64_REGEX.test(hash)) {
     return {
-      hash: '',
       creator: '',
+      hash: '',
     };
   }
 
@@ -623,4 +652,139 @@ export function parseMessageId(id: string) {
     creator,
     hash,
   };
+}
+
+export enum ChatMessageSubType {
+  Default = '',
+  Direct = 'DIRECT',
+}
+
+export type ChatMessagePayload = {
+  encryptedContent: string;
+  reference: string;
+  senderECDH: string;
+  senderSeed: string;
+  receiverECDH: string;
+  content?: string;
+};
+
+export type ChatJSON = {
+  type: MessageType;
+  messageId: string;
+  hash: string;
+  createdAt: number;
+  subtype: ChatMessageSubType;
+  payload: ChatMessagePayload;
+  meta?: any;
+};
+
+export type ChatMessageOption = {
+  subtype: ChatMessageSubType;
+  payload: {
+    encryptedContent: string;
+    reference?: string;
+    senderECDH: string;
+    senderSeed?: string;
+    receiverECDH: string;
+  };
+  hash?: string;
+} & MessageOption;
+
+export class Chat extends Message {
+  subtype: ChatMessageSubType;
+
+  payload: ChatMessagePayload;
+
+  static fromHex(hex: string) {
+    let d = hex;
+
+    const [type] = decodeString(d, 2, cb);
+    const [subtype] = decodeString(d, 2, cb);
+    const [creator] = decodeString(d, 3, cb);
+    const [createdAt] = decodeNumber(d, 12, cb);
+    const [encryptedContent] = decodeString(d, 6, cb);
+    const [reference] = decodeString(d, 3, cb);
+    const [senderECDH] = decodeString(d, 3, cb);
+    const [receiverECDH] = decodeString(d, 3, cb);
+    const [senderSeed] = decodeString(d, 3, cb);
+
+    return new Chat({
+      createdAt: new Date(createdAt),
+      creator,
+      payload: {
+        encryptedContent,
+        receiverECDH,
+        reference,
+        senderECDH,
+        senderSeed,
+      },
+      subtype: subtype as ChatMessageSubType,
+      type: type as MessageType.Chat,
+    });
+
+    function cb(n: number) {
+      d = d.slice(n);
+    }
+  }
+
+  static getSubtype(subtype: string): ChatMessageSubType {
+    switch (subtype) {
+      case 'DIRECT':
+        return ChatMessageSubType.Direct;
+      default:
+        return ChatMessageSubType.Default;
+    }
+  }
+
+  constructor(opt: ChatMessageOption) {
+    super(opt);
+    this.type = MessageType.Chat;
+    this.subtype = Chat.getSubtype(opt.subtype);
+    this.payload = {
+      encryptedContent: opt.payload.encryptedContent || '',
+      receiverECDH: opt.payload.receiverECDH || '',
+      reference: opt.payload.reference || '',
+      senderECDH: opt.payload.senderECDH || '',
+      senderSeed: opt.payload.senderSeed || '',
+    };
+  }
+
+  hash() {
+    return crypto.createHash('sha256').update(this.toHex()).digest('hex');
+  }
+
+  toJSON(): ChatJSON {
+    const hash = this.hash();
+    return {
+      createdAt: this.createdAt.getTime(),
+      hash: hash,
+      messageId: this.creator ? `${this.creator}/${hash}` : hash,
+      payload: this.payload,
+      subtype: this.subtype,
+      type: this.type,
+    };
+  }
+
+  toHex() {
+    const type = encodeString(this.type, 2);
+    const subtype = encodeString(this.subtype, 2);
+    const creator = encodeString(this.creator, 3);
+    const createdAt = encodeNumber(this.createdAt.getTime(), 12);
+    const encryptedContent = encodeString(this.payload.encryptedContent, 6);
+    const reference = encodeString(this.payload.reference, 3);
+    const senderECDH = encodeString(this.payload.senderECDH, 3);
+    const receiverECDH = encodeString(this.payload.receiverECDH, 3);
+    const senderSeed = encodeString(this.payload.senderSeed, 3);
+    return (
+      type +
+      subtype +
+      creator +
+      createdAt +
+      encryptedContent +
+      reference +
+      senderECDH +
+      receiverECDH +
+      senderSeed
+    );
+  }
 }

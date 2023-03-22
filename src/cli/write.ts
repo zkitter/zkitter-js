@@ -1,9 +1,9 @@
-import { Command } from 'commander';
-import { initZkitter } from '../utils/cli';
-import { error, success } from '../utils/logger';
-import { Zkitter } from '../services';
 import { Strategy, ZkIdentity } from '@zk-kit/identity';
+import { Command } from 'commander';
+import { Zkitter } from '../services';
+import { initZkitter } from '../utils/cli';
 import { sha256, signWithP256 } from '../utils/crypto';
+import { error, success } from '../utils/logger';
 
 export function write(program: Command) {
   program
@@ -18,7 +18,7 @@ export function write(program: Command) {
 
       if (!zkitter) return;
 
-      const { content, user, secret, group } = options;
+      const { content, group, secret, user } = options;
 
       await handleWrite(zkitter, user, group, content, secret);
 
@@ -42,8 +42,8 @@ export async function handleWrite(
       zkIdentity = new ZkIdentity(
         Strategy.SERIALIZED,
         JSON.stringify({
-          identityTrapdoor,
           identityNullifier,
+          identityTrapdoor,
           secret: [identityTrapdoor, identityNullifier],
         })
       );
@@ -56,11 +56,11 @@ export async function handleWrite(
     }
 
     await zkitter.write({
-      creator: address,
       content,
+      creator: address,
+      groupId: group,
       privateKey,
       zkIdentity,
-      groupId: group,
     });
 
     success('post published successfully.');
