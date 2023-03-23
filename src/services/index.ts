@@ -267,6 +267,10 @@ export class Zkitter extends GenericService {
     return this.services.users.getUserMeta(address);
   }
 
+  async getUserByECDH(ecdh: string): Promise<string | null> {
+    return this.db.getUserByECDH(ecdh);
+  }
+
   async getPosts(limit?: number, offset?: string | number): Promise<Post[]> {
     return this.services.posts.getPosts(limit, offset);
   }

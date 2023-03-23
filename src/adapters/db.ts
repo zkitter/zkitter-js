@@ -17,6 +17,7 @@ export interface GenericDBAdapterInterface {
   getUsers: (limit?: number, offset?: number | string) => Promise<User[]>;
   getUser: (address: string) => Promise<User | null>;
   getUserMeta: (address: string) => Promise<UserMeta>;
+  getUserByECDH: (ecdh: string) => Promise<string | null>;
   getProof: (hash: string) => Promise<Proof | null>;
   insertGroupMember: (groupId: string, member: GroupMember) => Promise<GroupMember | null>;
   getGroupMembers: (groupId: string, limit?: number, offset?: number | string) => Promise<string[]>;

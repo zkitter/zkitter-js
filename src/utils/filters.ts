@@ -38,8 +38,6 @@ export class Filter {
     this.thread = new Set(thread);
     this.all = all;
     this.prefix = prefix;
-
-    console.log(this);
   }
 
   get isEmpty() {

@@ -172,6 +172,10 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     });
   }
 
+  get userECDHDB() {
+    return this.db.sublevel<string, string>('userECDH', { valueEncoding: 'json' });
+  }
+
   get groupRootsDB() {
     return this.db.sublevel<string, string>('groupRoots', {
       valueEncoding: 'json',
@@ -312,6 +316,10 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     }
 
     return null;
+  }
+
+  async getUserByECDH(ecdh: string): Promise<string | null> {
+    return this.userECDHDB.get(ecdh).catch(() => null);
   }
 
   async getUserMeta(address: string): Promise<UserMeta> {
@@ -455,6 +463,12 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
           await checkAndReplace('idCommitment');
         } else if (profile.payload.key === 'ecdh_pubkey') {
           await checkAndReplace('ecdh');
+          operations.push({
+            key: profile.payload.value,
+            sublevel: this.userECDHDB,
+            type: 'put',
+            value: profile.creator,
+          });
         }
         break;
     }
@@ -682,6 +696,15 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         value: json.hash,
       },
     ];
+
+    if (chat.creator) {
+      operations.push({
+        key: senderECDH,
+        sublevel: this.savedChatECDHDB(chat.creator),
+        type: 'put',
+        value: senderECDH,
+      });
+    }
 
     if (!senderMeta) {
       operations.push({

@@ -219,17 +219,7 @@ export class Post extends Message {
     const content = encodeString(this.payload.content, 6);
     const reference = encodeString(this.payload.reference, 3);
     const attachment = encodeString(this.payload.attachment, 3);
-    return (
-      type +
-      subtype +
-      creator +
-      createdAt +
-      topic +
-      title +
-      content +
-      reference +
-      attachment
-    );
+    return type + subtype + creator + createdAt + topic + title + content + reference + attachment;
   }
 }
 

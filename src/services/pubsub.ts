@@ -7,7 +7,7 @@ import { Message } from '../models/message';
 import { Proof, ProofType } from '../models/proof';
 import { sha256, signWithP256, verifySignatureP256 } from '../utils/crypto';
 import { Filter } from '../utils/filters';
-import {generateECDHKeyPairFromZKIdentity, generateZKIdentityWithP256} from '../utils/identity';
+import { generateECDHKeyPairFromZKIdentity, generateZKIdentityWithP256 } from '../utils/identity';
 import {
   Chat,
   ChatMessageSubType,
@@ -140,7 +140,7 @@ export class PubsubService extends GenericService {
     groupId?: string;
   }): Promise<Proof> {
     const { address, groupId, hash, privateKey, zkIdentity } = opts;
-    let identity = zkIdentity;
+    const identity = zkIdentity;
 
     if (address && privateKey) {
       const sig = signWithP256(privateKey, hash);
@@ -158,10 +158,10 @@ export class PubsubService extends GenericService {
       const ecdh = await generateECDHKeyPairFromZKIdentity(identity, hash);
 
       return {
+        ecdh: ecdh.pub,
         groupId: groupId || '',
         proof,
         type: ProofType.rln,
-        ecdh: ecdh.pub,
       };
     }
 

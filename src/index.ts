@@ -29,22 +29,22 @@ export {
 } from './utils/identity';
 export { Chat, Connection, Message, Moderation, Post, Profile } from './utils/message';
 export {
-  type ConnectionJSON,
   type ChatJSON,
-  type ModerationJSON,
-  type PostJSON,
-  type ProfileJSON,
-  type PostMessageOption,
   type ChatMessageOption,
-  type ProfileMessageOption,
-  type ConnectionMessageOption,
-  type ModerationMessageOption,
   ChatMessageSubType,
+  type ConnectionJSON,
+  type ConnectionMessageOption,
   ConnectionMessageSubType,
   MessageType,
+  type ModerationJSON,
+  type ModerationMessageOption,
   ModerationMessageSubType,
-  PostMessageSubType,
-  ProfileMessageSubType,
   parseMessageId,
+  type PostJSON,
+  type PostMessageOption,
+  PostMessageSubType,
+  type ProfileJSON,
+  type ProfileMessageOption,
+  ProfileMessageSubType,
 } from './utils/message';
 export { createRLNProof } from './utils/zk';
