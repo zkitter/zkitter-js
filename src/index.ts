@@ -11,13 +11,26 @@ export type { Proof, ProofType, RLNProof, SignatureProof } from './models/proof'
 
 export type { User } from './models/user';
 
-export type { UserMeta } from './models/usermeta';
-export { EmptyUserMeta } from './models/usermeta';
+export { EmptyUserMeta, type UserMeta } from './models/usermeta';
 
 export { Zkitter } from './services';
-export * as Chats from './utils/chat';
-export * as Crypto from './utils/crypto';
+
+export {
+  deriveChatId,
+} from './utils/chat';
+
+export {
+  sha256,
+  signWithP256,
+  decrypt,
+  deriveSharedSecret,
+  randomBytes,
+  encrypt,
+  verifySignatureP256,
+} from './utils/crypto';
+
 export * as Utils from './utils/encoding';
+
 export { Filter, type FilterOptions } from './utils/filters';
 export {
   generateECDHKeyPairFromHex,
@@ -26,6 +39,8 @@ export {
   generateIdentity,
   generateZkIdentityFromHex,
   generateZKIdentityWithP256,
+  generateP256FromSeed,
+  generateP256FromHex,
 } from './utils/identity';
 export { Chat, Connection, Message, Moderation, Post, Profile } from './utils/message';
 export {
