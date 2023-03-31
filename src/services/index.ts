@@ -243,8 +243,8 @@ export class Zkitter extends GenericService {
     await this.services.groups.sync(groupId);
   }
 
-  async getGroupByRoot(rootHash: string) {
-    return this.services.groups.getGroupByRoot(rootHash);
+  async getGroupByRoot(rootHash: string, groupId?: string) {
+    return this.services.groups.getGroupByRoot(rootHash, groupId);
   }
 
   async getGroupMembers(groupId: string) {

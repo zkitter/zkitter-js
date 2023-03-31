@@ -108,13 +108,13 @@ export class PubsubService extends GenericService {
         const { groupId, proof: fullProof } = proof;
 
         let group = await this.groups
-          .getGroupByRoot(fullProof.publicSignals.merkleRoot as string)
+          .getGroupByRoot(fullProof.publicSignals.merkleRoot as string, groupId)
           .catch(() => null);
 
         if (!group && groupId) {
           await this.groups.sync(groupId);
           group = await this.groups
-            .getGroupByRoot(fullProof.publicSignals.merkleRoot as string)
+            .getGroupByRoot(fullProof.publicSignals.merkleRoot as string, groupId)
             .catch(() => null);
         }
 
@@ -293,7 +293,8 @@ export class PubsubService extends GenericService {
         });
       } else if (proof.type === ProofType.rln) {
         const groupId = await this.groups.getGroupByRoot(
-          proof.proof.publicSignals.merkleRoot as string
+          proof.proof.publicSignals.merkleRoot as string,
+          proof.groupId,
         );
         const encoder = createEncoder(groupMessageTopic(groupId!, this.topicPrefix));
         await this.waku.lightPush.push(encoder, {

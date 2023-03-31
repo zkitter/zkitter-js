@@ -21,7 +21,7 @@ export interface GenericDBAdapterInterface {
   getProof: (hash: string) => Promise<Proof | null>;
   insertGroupMember: (groupId: string, member: GroupMember) => Promise<GroupMember | null>;
   getGroupMembers: (groupId: string, limit?: number, offset?: number | string) => Promise<string[]>;
-  findGroupHash: (hash: string) => Promise<string | null>;
+  findGroupHash: (hash: string, groupId?: string) => Promise<string | null>;
   insertPost: (post: Post, proof: Proof) => Promise<Post>;
   insertChat: (chat: Chat, proof: Proof) => Promise<Chat>;
   insertModeration: (moderation: Moderation, proof: Proof) => Promise<Moderation | null>;

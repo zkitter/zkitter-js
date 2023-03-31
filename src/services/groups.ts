@@ -90,8 +90,8 @@ export class GroupService extends GenericService {
     this.timeout = setTimeout(this.watch, DEFAULT_WATCH_INTERVAL);
   };
 
-  async getGroupByRoot(rootHash: string) {
-    return this.db.findGroupHash(rootHash);
+  async getGroupByRoot(rootHash: string, groupId?: string) {
+    return this.db.findGroupHash(rootHash, groupId);
   }
 
   async getMerklePath(idCommitment: string, groupId?: string, depth = 15) {
