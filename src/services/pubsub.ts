@@ -259,8 +259,8 @@ export class PubsubService extends GenericService {
     }
   }
 
-  async publish(message: ZkitterMessage, proof: Proof) {
-    if (await this.validateMessage(message, proof)) {
+  async publish(message: ZkitterMessage, proof: Proof, force = false) {
+    if (force || await this.validateMessage(message, proof)) {
       const payload = await this.covertMessaegToWakuPayload(message, proof);
 
       if (message.type === MessageType.Chat && message.subtype === ChatMessageSubType.Direct) {
@@ -419,7 +419,6 @@ export class PubsubService extends GenericService {
       for (const message of wakuMessages.filter(msg => !!msg)) {
         if (message?.payload) {
           const decoded = Message.decode(message.payload);
-          1;
           const msg = ZkitterMessage.fromHex(decoded.data);
           const proof: Proof = JSON.parse(decoded.proof);
           if (msg && (await this.validateMessage(msg, proof))) {

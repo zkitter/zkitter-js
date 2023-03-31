@@ -287,6 +287,10 @@ export class Zkitter extends GenericService {
     return this.services.posts.getUserPosts(address, limit, offset);
   }
 
+  async getGroupPosts(groupId: string, limit?: number, offset?: string | number): Promise<Post[]> {
+    return this.db.getGroupPosts(groupId, limit, offset);
+  }
+
   async getThread(hash: string, limit?: number, offset?: string | number): Promise<Post[]> {
     return this.services.posts.getReplies(hash, limit, offset);
   }
@@ -524,8 +528,8 @@ export class Zkitter extends GenericService {
     return this.services.pubsub.createProof(opts);
   }
 
-  async publish(message: ZkitterMessage, proof: Proof) {
-    await this.services.pubsub.publish(message, proof);
+  async publish(message: ZkitterMessage, proof: Proof, force = false) {
+    await this.services.pubsub.publish(message, proof, force);
     await this.insert(message, proof);
     return [message, proof];
   }
