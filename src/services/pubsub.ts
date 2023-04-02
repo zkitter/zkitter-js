@@ -292,10 +292,7 @@ export class PubsubService extends GenericService {
           timestamp: message.createdAt,
         });
       } else if (proof.type === ProofType.rln) {
-        const groupId = await this.groups.getGroupByRoot(
-          proof.proof.publicSignals.merkleRoot as string,
-          proof.groupId,
-        );
+        const groupId = proof.groupId;
         const encoder = createEncoder(groupMessageTopic(groupId!, this.topicPrefix));
         await this.waku.lightPush.push(encoder, {
           payload,
