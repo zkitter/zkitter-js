@@ -33,7 +33,7 @@ export class TazGroup extends EventEmitter2 implements GenericGroupAdapter {
           tree.insert(BigInt(idCommitment));
           const member = {
             idCommitment,
-            index: i,
+            index: i + members.length,
             newRoot: tree.root.toString(),
           };
           await this.db.insertGroupMember(this.groupId, member);

@@ -106,7 +106,6 @@ export class Zkitter extends GenericService {
     );
 
     const grouplist = options?.groups || [
-      new GlobalGroup({ db }),
       new TazGroup({ db }),
       new InterepGroup({ db, groupId: 'interrep_twitter_unrated' }),
       new InterepGroup({ db, groupId: 'interrep_twitter_bronze' }),
