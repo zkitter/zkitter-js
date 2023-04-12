@@ -47,15 +47,19 @@ export const AlreadyExistError = new Error('already exist');
 
 export class LevelDBAdapter implements GenericDBAdapterInterface {
   db: Level;
+  udb: Level;
 
   static async initialize(path?: string) {
     const db = new Level(path || './zkitterdb', { valueEncoding: 'json' });
+    const udb = new Level(path || './zkitter_userdb', { valueEncoding: 'json' });
     await db.open();
-    return new LevelDBAdapter(db);
+    await udb.open();
+    return new LevelDBAdapter(db, udb);
   }
 
-  constructor(db: Level) {
+  constructor(db: Level, udb: Level) {
     this.db = db;
+    this.udb = udb;
   }
 
   get appDB() {
@@ -68,8 +72,12 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return this.db.sublevel<string, number>('meta', { valueEncoding: 'json' });
   }
 
+  get arbDB() {
+    return this.udb.sublevel<string, number>('arbitrum', { valueEncoding: 'json' });
+  }
+
   get userDB() {
-    return this.db.sublevel<string, User>('users', { valueEncoding: 'json' });
+    return this.udb.sublevel<string, User>('users', { valueEncoding: 'json' });
   }
 
   get postMetaDB() {
@@ -199,13 +207,33 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return String(arbitrumProvider) || 'https://arb1.arbitrum.io/rpc';
   }
 
-  async setHistoryDownloaded(downloaded: boolean, user?: string): Promise<void> {
-    const mod = typeof user === 'string' ? '/' + user : '';
-    return this.appDB.put(keys.APP.historyDownloaded + mod, downloaded);
+  async setHistoryDownloaded(downloaded: boolean, user?: string, group = false): Promise<void> {
+    if (group) {
+      return this.appDB.put(keys.APP.historyDownloaded + '/group', downloaded);
+    }
+
+    if (typeof user === 'string') {
+      return this.appDB.put(keys.APP.historyDownloaded + '/' + user, downloaded);
+    }
+
+    return this.appDB.put(keys.APP.historyDownloaded, downloaded);
   }
 
-  async getHistoryDownloaded(user?: string): Promise<boolean> {
+  async getHistoryDownloaded(user?: string, group = false): Promise<boolean> {
     const mod = typeof user === 'string' ? '/' + user : '';
+
+    if (await this.appDB.get(keys.APP.historyDownloaded).catch(() => false)) {
+      return true;
+    }
+
+    if (group) {
+      return this.appDB.get(keys.APP.historyDownloaded + '/group').catch(() => false) as Promise<boolean>;
+    }
+
+    if (typeof user === 'string') {
+      return this.appDB.get(keys.APP.historyDownloaded + '/' + user).catch(() => false) as Promise<boolean>;
+    }
+
     return this.appDB
       .get(keys.APP.historyDownloaded + mod)
       .then(historyDownloaded => !!historyDownloaded)
@@ -218,7 +246,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
   async getLastArbitrumBlockScanned(): Promise<number> {
     try {
-      const block = await this.appDB.get(keys.APP.lastArbitrumBlockScanned);
+      const block = await this.arbDB.get(keys.APP.lastArbitrumBlockScanned);
       const blockNumber = Number(block);
       if (block && !isNaN(blockNumber)) {
         return blockNumber;
@@ -239,7 +267,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   async updateLastArbitrumBlockScanned(block: number): Promise<any> {
-    return this.appDB.put(keys.APP.lastArbitrumBlockScanned, block);
+    return this.arbDB.put(keys.APP.lastArbitrumBlockScanned, block);
   }
 
   async updateUser(user: User): Promise<User> {

@@ -61,6 +61,22 @@ export class Filter {
     ];
   }
 
+  get json(): {
+    all: boolean,
+    address: string[],
+    group: string[],
+    thread: string[],
+    ecdh: string[],
+  } {
+    return {
+      all: this.all,
+      address: [...this.address],
+      group: [...this.group],
+      thread: [...this.thread],
+      ecdh: [...this.ecdh],
+    }
+  }
+
   has(identifier: string): boolean {
     if (this.all) return true;
 

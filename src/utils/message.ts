@@ -8,6 +8,7 @@ export enum MessageType {
   Connection = 'CONNECTION',
   Chat = 'CHAT',
   File = 'FILE',
+  Revert = 'REVERT',
 }
 
 export type MessageOption = {
@@ -16,7 +17,7 @@ export type MessageOption = {
   createdAt?: Date;
 };
 
-export type AnyMessage = Post | Moderation | Connection | Profile | Chat;
+export type AnyMessage = Post | Moderation | Connection | Profile | Chat | Revert;
 
 export class Message {
   type: MessageType;
@@ -761,6 +762,93 @@ export class Chat extends Message {
       senderECDH +
       receiverECDH +
       senderSeed
+    );
+  }
+}
+
+export type RevertMessageOption = {
+  payload: {
+    reference: string;
+  };
+} & MessageOption;
+
+export type RevertMessagePayload = {
+  reference: string;
+};
+
+export type RevertJSON = {
+  type: MessageType.Revert;
+  messageId: string;
+  hash: string;
+  createdAt: number;
+  subtype: '';
+  payload: RevertMessagePayload;
+  meta?: any;
+};
+
+export class Revert extends Message {
+  type: MessageType.Revert;
+  subtype: '';
+
+  payload: RevertMessagePayload;
+
+  static fromHex(hex: string) {
+    let d = hex;
+
+    const [type] = decodeString(d, 2, cb);
+    const [creator] = decodeString(d, 3, cb);
+    const [createdAt] = decodeNumber(d, 12, cb);
+    const [reference] = decodeString(d, 3, cb);
+
+    return new Revert({
+      createdAt: new Date(createdAt),
+      creator,
+      payload: {
+        reference,
+      },
+      type: type as MessageType.Revert,
+    });
+
+    function cb(n: number) {
+      d = d.slice(n);
+    }
+  }
+
+  constructor(opt: RevertMessageOption) {
+    super(opt);
+    this.type = MessageType.Revert;
+    this.subtype = '';
+    this.payload = {
+      reference: opt.payload.reference || '',
+    };
+  }
+
+  hash() {
+    return crypto.createHash('sha256').update(this.toHex()).digest('hex');
+  }
+
+  toJSON(): RevertJSON {
+    const hash = this.hash();
+    return {
+      createdAt: this.createdAt.getTime(),
+      hash: hash,
+      messageId: this.creator ? `${this.creator}/${hash}` : hash,
+      payload: this.payload,
+      subtype: this.subtype,
+      type: MessageType.Revert,
+    };
+  }
+
+  toHex() {
+    const type = encodeString(this.type, 2);
+    const creator = encodeString(this.creator, 3);
+    const createdAt = encodeNumber(this.createdAt.getTime(), 12);
+    const reference = encodeString(this.payload.reference, 3);
+    return (
+      type +
+      creator +
+      createdAt +
+      reference
     );
   }
 }

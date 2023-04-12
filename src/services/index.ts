@@ -4,7 +4,6 @@ import Web3 from 'web3';
 import { Contract } from 'web3-eth-contract';
 import { GenericDBAdapterInterface } from '../adapters/db';
 import { GenericGroupAdapter } from '../adapters/group';
-import { GlobalGroup } from '../adapters/groups/global';
 import { InterepGroup } from '../adapters/groups/interep';
 import { TazGroup } from '../adapters/groups/taz';
 import { AlreadyExistError, LevelDBAdapter } from '../adapters/leveldb';
@@ -13,7 +12,6 @@ import { PostMeta } from '../models/postmeta';
 import { Proof } from '../models/proof';
 import { User } from '../models/user';
 import { UserMeta } from '../models/usermeta';
-import { deriveChatId } from '../utils/chat';
 import { decrypt, deriveSharedSecret, encrypt, randomBytes } from '../utils/crypto';
 import { Filter, FilterOptions } from '../utils/filters';
 import {
@@ -52,6 +50,7 @@ export enum ZkitterEvents {
   NewMessageCreated = 'Zkitter.NewMessageCreated',
   InvalidEventData = 'Users.InvalidEventData',
   AlreadyExist = 'Level.AlreadyExist',
+  HistoryDowload = 'History.Download',
 }
 
 export class Zkitter extends GenericService {
@@ -183,7 +182,10 @@ export class Zkitter extends GenericService {
   }
 
   async status() {
-    return this.services.users.status();
+    return {
+      users: await this.services.users.status(),
+      filter: this.filter.json,
+    };
   }
 
   /**
@@ -227,6 +229,22 @@ export class Zkitter extends GenericService {
   }
 
   async query() {
+    const { all, address, group } = this.filter.json;
+
+    if (all) {
+      await this.downloadHistoryFromAPI().catch(() => null);
+    } else {
+      if (address.length) {
+        for (const user of address) {
+          await this.downloadHistoryFromAPI(user).catch(() => null);
+        }
+      }
+
+      if (group) {
+        await this.downloadHistoryFromAPI(undefined, true).catch(() => null);
+      }
+    }
+
     return this.services.pubsub.query(this.filter, async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
@@ -401,6 +419,7 @@ export class Zkitter extends GenericService {
   }
 
   async queryUser(address: string) {
+    this.downloadHistoryFromAPI(address);
     return this.services.pubsub.queryUser(address, async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
@@ -409,6 +428,7 @@ export class Zkitter extends GenericService {
   }
 
   async queryGroup(groupId: string) {
+    this.downloadHistoryFromAPI(undefined, true);
     return this.services.pubsub.queryGroup(groupId, async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
@@ -417,6 +437,7 @@ export class Zkitter extends GenericService {
   }
 
   async queryAll() {
+    this.downloadHistoryFromAPI();
     return this.services.pubsub.queryAll(async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
@@ -424,18 +445,30 @@ export class Zkitter extends GenericService {
     });
   }
 
-  async downloadHistoryFromAPI(): Promise<void> {
-    const downloaded = await this.db.getHistoryDownloaded();
+  async downloadHistoryFromAPI(user?: string, group = false): Promise<void> {
+    if (user && group) {
+      throw new Error('must specify either user or group');
+    }
+
+    const downloaded = await this.db.getHistoryDownloaded(user, group);
+
     if (downloaded) return;
 
-    const resp = await fetch(this.historyAPI);
+    const api = user
+      ? this.historyAPI + '?user=' + user
+      : group
+      ? this.historyAPI + '?global=true'
+      : this.historyAPI;
+    const resp = await fetch(api);
     const json = await resp.json();
 
-    // eslint-disable-next-line no-async-promise-executor
     return new Promise(async (resolve, reject) => {
       if (json.error) return reject(json.payload);
 
       try {
+        const total = json.payload.length;
+        let i = 0;
+
         for (const msg of json.payload) {
           if (!msg) continue;
           const { creator } = parseMessageId(msg.messageId);
@@ -487,9 +520,17 @@ export class Zkitter extends GenericService {
               type: '',
             });
           }
+
+          this.emit(ZkitterEvents.HistoryDowload, {
+            total: total,
+            currentIndex: ++i,
+            user,
+            group,
+            all: !user && !group,
+          });
         }
 
-        await this.db.setHistoryDownloaded(true);
+        await this.db.setHistoryDownloaded(true, user, group);
         resolve();
       } catch (e) {
         reject(e);

@@ -42,7 +42,7 @@ export {
   generateP256FromSeed,
   generateP256FromHex,
 } from './utils/identity';
-export { Chat, Connection, Message, Moderation, Post, Profile } from './utils/message';
+export { Chat, Connection, Message, Moderation, Post, Profile, Revert } from './utils/message';
 export {
   type ChatJSON,
   type ChatMessageOption,
