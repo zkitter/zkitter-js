@@ -2,7 +2,7 @@ import {GenericService} from "../utils/svc";
 import {ConstructorOptions} from "eventemitter2";
 import {GenericDBAdapterInterface} from "../adapters/db";
 import {
-  AnyMessage,
+  AnyMessage, Connection, ConnectionMessageSubType,
   MessageType,
   Moderation,
   ModerationMessageSubType,
@@ -36,6 +36,8 @@ export class DBService extends GenericService {
         return this.insertPost(msg as Post, proof);
       case MessageType.Moderation:
         return this.insertModeration(msg as Moderation, proof);
+      case MessageType.Connection:
+        return this.insertConnection(msg as Connection, proof);
       default:
         return;
     }
@@ -87,5 +89,21 @@ export class DBService extends GenericService {
     }
 
     await this.db.addToThreadModerations(mod);
+  }
+
+  async insertConnection(conn: Connection, proof: Proof): Promise<void> {
+    switch (conn.subtype) {
+      case ConnectionMessageSubType.Follow:
+        await this.db.incrementFollowerCount(conn);
+        break;
+      case ConnectionMessageSubType.Block:
+        await this.db.incrementBlockerCount(conn);
+        break;
+      case ConnectionMessageSubType.MemberInvite:
+      case ConnectionMessageSubType.MemberAccept:
+        break;
+    }
+
+    await this.db.addToConnections(conn);
   }
 }

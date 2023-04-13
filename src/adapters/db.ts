@@ -76,4 +76,7 @@ export interface GenericDBAdapterInterface {
   addToThreadModerations: (mod: Moderation) => Promise<void>;
   updateThreadVisibility(mod: Moderation): Promise<void>;
   updateThreadModeration(mod: Moderation): Promise<void>;
+  addToConnections(conn: Connection): Promise<void>;
+  incrementFollowerCount(conn: Connection): Promise<void>;
+  incrementBlockerCount(conn: Connection): Promise<void>;
 }

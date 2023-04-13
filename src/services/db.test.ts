@@ -3,7 +3,15 @@ import * as path from 'path';
 import * as fs from 'fs';
 import {LevelDBAdapter} from '../adapters/leveldb';
 import {DBService} from './db';
-import {MessageType, Moderation, ModerationMessageSubType, Post, PostMessageSubType} from '../utils/message';
+import {
+  Connection,
+  ConnectionMessageSubType,
+  MessageType,
+  Moderation,
+  ModerationMessageSubType,
+  Post,
+  PostMessageSubType
+} from '../utils/message';
 import {ProofType, RLNProof, SignatureProof} from '../models/proof';
 
 tape('LevelDB Adapter', async t => {
@@ -41,6 +49,18 @@ tape('LevelDB Adapter', async t => {
   await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.Block, 'userD'), mockUserProof());
   await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.Block, 'userD'), mockUserProof());
 
+  // Initialize DB with connections
+  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userA'), mockUserProof());
+  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userA'), mockUserProof());
+  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userB'), mockUserProof());
+  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userC'), mockUserProof());
+  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userD'), mockUserProof());
+  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userD'), mockUserProof());
+  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userE'), mockUserProof());
+  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Block, 'userE'), mockUserProof());
+  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Block, 'userE'), mockUserProof());
+  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.MemberInvite, 'userE'), mockUserProof());
+  await db.insertMessage(makeConnection('userE', ConnectionMessageSubType.MemberAccept, 'userA'), mockUserProof());
 
   t.test('messages and proof', async test => {
     const msgA = await ldb.getMessage(hashA);
@@ -133,7 +153,49 @@ tape('LevelDB Adapter', async t => {
     );
 
     modTest.end();
-  })
+  });
+
+  t.test('insert connection', async test => {
+    const userMetaA = await ldb.getUserMeta('userA');
+    const userMetaB = await ldb.getUserMeta('userB');
+    const userMetaD = await ldb.getUserMeta('userD');
+    const userMetaE = await ldb.getUserMeta('userE');
+
+    test.equal(userMetaA.blockers, 1, 'only 1 block per user (include self)');
+    test.equal(userMetaA.blocking, 0, 'only 1 block per user (include self)');
+    test.equal(userMetaA.followers, 5, 'only 1 follow per user (include self)');
+    test.equal(userMetaA.following, 1, 'only 1 follow per user (include self)');
+
+    test.equal(userMetaB.blockers, 0, 'only 1 block per user (include self)');
+    test.equal(userMetaB.blocking, 0, 'only 1 block per user (include self)');
+    test.equal(userMetaB.followers, 0, 'only 1 follow per user (include self)');
+    test.equal(userMetaB.following, 1, 'only 1 follow per user (include self)');
+
+    test.equal(userMetaD.blockers, 0, 'only 1 block per user (include self)');
+    test.equal(userMetaD.blocking, 0, 'only 1 block per user (include self)');
+    test.equal(userMetaD.followers, 0, 'only 1 follow per user (include self)');
+    test.equal(userMetaD.following, 1, 'only 1 follow per user (include self)');
+
+    test.equal(userMetaE.blockers, 0, 'only 1 block per user (include self)');
+    test.equal(userMetaE.blocking, 1, 'only 1 block per user (include self)');
+    test.equal(userMetaE.followers, 0, 'only 1 follow per user (include self)');
+    test.equal(userMetaE.following, 1, 'only 1 follow per user (include self)');
+
+    const aconns = await ldb.getConnections('userA');
+    const econns = await ldb.getConnections('userE');
+
+    test.equal(aconns.length, 7, 'userA should have 7 incoming connections');
+    test.assert(
+      aconns.reduce((res, c) => res && c.type === 'CONNECTION', true),
+      'only return connections'
+    );
+
+    test.equal(econns.length, 1, 'userE should have 1 incoming connections');
+    test.equal(econns[0].subtype, 'MEMBER_ACCEPT', 'userE should have an incoming MEMBER_ACCEPT');
+    test.equal(econns[0].creator, 'userA', 'userE should have an incoming MEMBER_ACCEPT from userA');
+
+    test.end();
+  });
 
   t.teardown(async () => {
     await fs.promises.rm(dbPath, { recursive: true, force: true });
@@ -184,6 +246,17 @@ function makeModeration(reference: string, subtype = ModerationMessageSubType.De
     creator,
     payload: {
       reference,
+    },
+  });
+}
+
+function makeConnection(name: string, subtype = ConnectionMessageSubType.Default, creator = 'userA'): Connection {
+  return new Connection({
+    type: MessageType.Connection,
+    subtype: subtype,
+    creator,
+    payload: {
+      name,
     },
   });
 }

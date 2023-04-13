@@ -869,6 +869,13 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     }
   }
 
+  async addToConnections(conn: Connection): Promise<void> {
+    return this.connectionsDB(conn.payload.name).put(
+      conn.creator ? conn.subtype + '_' + conn.creator : conn.hash(),
+      conn.hash()
+    );
+  }
+
   async insertPost(post: Post, proof: Proof): Promise<Post> {
     const json = post.toJSON();
     const existing = await this.messageDB()
@@ -1086,7 +1093,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     const { hash } = parseMessageId(mod.payload.reference);
     const postMeta = await this.getPostMeta(hash);
     const exist = await this.moderationsDB(hash)
-      .get(mod.creator ? mod.subtype + '_' + mod.creator : mod.hash(),)
+      .get(mod.creator ? mod.subtype + '_' + mod.creator : mod.hash())
       .catch(() => null);
 
     if (!exist) {
@@ -1105,6 +1112,39 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     if (!exist) {
       postMeta.block = postMeta.block + 1;
       return this.postMetaDB.put(hash, postMeta);
+    }
+  }
+
+  async incrementFollowerCount(conn: Connection): Promise<void> {
+    const exist = await this.connectionsDB(conn.payload.name)
+      .get(conn.creator ? conn.subtype + '_' + conn.creator : conn.hash())
+      .catch(() => null);
+
+    if (!exist) {
+      const meta = await this.getUserMeta(conn.payload.name);
+      meta.followers = meta.followers + 1;
+      await this.userMetaDB.put(conn.payload.name, meta);
+
+      const creatorMeta = await this.getUserMeta(conn.creator);
+      creatorMeta.following = creatorMeta.following + 1;
+      await this.userMetaDB.put(conn.creator, creatorMeta);
+    }
+  }
+
+  async incrementBlockerCount(conn: Connection): Promise<void> {
+    const exist = await this.connectionsDB(conn.payload.name)
+      .get(conn.creator ? conn.subtype + '_' + conn.creator : conn.hash())
+      .catch(() => null);
+
+    if (!exist) {
+      const meta = await this.getUserMeta(conn.payload.name);
+      const creatorMeta = await this.getUserMeta(conn.creator);
+
+      meta.blockers = meta.blockers + 1;
+      creatorMeta.blocking = creatorMeta.blocking + 1;
+
+      await this.userMetaDB.put(conn.payload.name, meta);
+      await this.userMetaDB.put(conn.creator, creatorMeta);
     }
   }
 
