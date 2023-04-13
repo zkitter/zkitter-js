@@ -1,12 +1,12 @@
-import {BatchOperation, Level} from 'level';
-import {ChatMeta} from '../models/chats';
-import {GroupMember} from '../models/group';
-import {EmptyPostMeta, PostMeta} from '../models/postmeta';
-import {Proof, ProofType} from '../models/proof';
-import {User} from '../models/user';
-import {EmptyUserMeta, UserMeta, UserMetaKey} from '../models/usermeta';
-import {deriveChatId} from '../utils/chat';
-import {Filter} from '../utils/filters';
+import { BatchOperation, Level } from 'level';
+import { ChatMeta } from '../models/chats';
+import { GroupMember } from '../models/group';
+import { EmptyPostMeta, PostMeta } from '../models/postmeta';
+import { Proof, ProofType } from '../models/proof';
+import { User } from '../models/user';
+import { EmptyUserMeta, UserMeta, UserMetaKey } from '../models/usermeta';
+import { deriveChatId } from '../utils/chat';
+import { Filter } from '../utils/filters';
 import {
   AnyMessage,
   Chat,
@@ -27,8 +27,9 @@ import {
   ProfileJSON,
   ProfileMessageSubType,
   Revert,
+  RevertJSON,
 } from '../utils/message';
-import {GenericDBAdapterInterface} from './db';
+import { GenericDBAdapterInterface } from './db';
 
 const charwise = require('charwise');
 
@@ -49,9 +50,9 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   db: Level;
   udb: Level;
 
-  static async initialize(path?: string) {
+  static async initialize(path?: string, udbPath?: string) {
     const db = new Level(path || './zkitterdb', { valueEncoding: 'json' });
-    const udb = new Level(path || './zkitter_userdb', { valueEncoding: 'json' });
+    const udb = new Level(udbPath || './zkitter_userdb', { valueEncoding: 'json' });
     await db.open();
     await udb.open();
     return new LevelDBAdapter(db, udb);
@@ -66,10 +67,6 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return this.db.sublevel<string, number | string | boolean>('app', {
       valueEncoding: 'json',
     });
-  }
-
-  get metaDB() {
-    return this.db.sublevel<string, number>('meta', { valueEncoding: 'json' });
   }
 
   get arbDB() {
@@ -328,7 +325,9 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   async getMessage(hash: string): Promise<AnyMessage | null> {
-    const json = await this.messageDB<PostJSON | ModerationJSON | ConnectionJSON | ProfileJSON | ChatJSON>()
+    const json = await this.messageDB<
+      PostJSON | ModerationJSON | ConnectionJSON | ProfileJSON | ChatJSON | RevertJSON
+    >()
       .get(hash)
       .catch(() => null);
 
@@ -338,10 +337,15 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       case MessageType.Post:
         return Post.fromJSON(json as PostJSON);
       case MessageType.Moderation:
+        return Moderation.fromJSON(json as ModerationJSON);
       case MessageType.Connection:
+        return Connection.fromJSON(json as ConnectionJSON);
       case MessageType.Profile:
+        return Profile.fromJSON(json as ProfileJSON);
       case MessageType.Chat:
-        return null;
+        return Chat.fromJSON(json as ChatJSON);
+      case MessageType.Revert:
+        return Revert.fromJSON(json as RevertJSON);
     }
 
     return null;
@@ -770,6 +774,101 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return chat;
   }
 
+  async addMessage(msg: AnyMessage): Promise<void> {
+    const json = msg.toJSON();
+    return this.messageDB().put(json.hash, json);
+  }
+
+  async addProof(msg: AnyMessage, proof: Proof): Promise<void> {
+    return this.proofDB().put(msg.hash(), proof);
+  }
+
+  async addUserMessage(msg: AnyMessage): Promise<void> {
+    if (!msg.creator) throw new Error('message has no creator');
+
+    return this.userMessageDB(msg.creator).put(
+      charwise.encode(msg.createdAt.getTime()),
+      msg.hash()
+    );
+  }
+
+  async addToPostlist(post: Post): Promise<void> {
+    return this.postlistDB.put(this.encodeMessageSortKey(post), post.hash());
+  }
+
+  async addToUserPosts(post: Post): Promise<void> {
+    if (!post.creator) throw new Error('post has no creator');
+    return this.userPostsDB(post.creator).put(
+      charwise.encode(post.createdAt.getTime()),
+      post.hash()
+    );
+  }
+
+  async addToGroupPosts(post: Post, proof: Proof): Promise<void> {
+    if (proof.type !== 'rln') throw new Error('post is not from a group');
+
+    const groupId = await this.findGroupHash(
+      proof.proof.publicSignals.merkleRoot as string,
+      proof.groupId
+    );
+
+    return this.groupPostsDB(groupId || '').put(
+      charwise.encode(post.createdAt.getTime()),
+      post.hash()
+    );
+  }
+
+  async addToThread(post: Post): Promise<void> {
+    if (
+      post.subtype !== PostMessageSubType.Reply &&
+      post.subtype !== PostMessageSubType.MirrorReply
+    ) {
+      throw new Error(`post subtype [${post.subtype}] is not a reply`);
+    }
+
+    const { hash } = parseMessageId(post.payload.reference);
+
+    return this.threadDB(hash).put(this.encodeMessageSortKey(post), post.hash());
+  }
+
+  async addToThreadModerations(mod: Moderation): Promise<void> {
+    const { hash } = parseMessageId(mod.payload.reference);
+    return this.moderationsDB(hash).put(
+      mod.creator ? mod.subtype + '_' + mod.creator : mod.hash(),
+      mod.hash()
+    );
+  }
+
+  async updateThreadVisibility(mod: Moderation): Promise<void> {
+    const { hash } = parseMessageId(mod.payload.reference);
+    const op = await this.getPost(hash);
+    const opMeta = await this.getPostMeta(hash);
+
+    if (op?.creator === mod.creator) {
+      switch (mod.subtype) {
+        case ModerationMessageSubType.Global:
+          opMeta.global = true;
+          return this.postMetaDB.put(hash, opMeta);
+      }
+    }
+  }
+
+  async updateThreadModeration(mod: Moderation): Promise<void> {
+    const { hash } = parseMessageId(mod.payload.reference);
+    const op = await this.getPost(hash);
+    const opMeta = await this.getPostMeta(hash);
+
+    if (op?.creator === mod.creator) {
+      switch (mod.subtype) {
+        case ModerationMessageSubType.ThreadBlock:
+        case ModerationMessageSubType.ThreadFollow:
+        case ModerationMessageSubType.ThreadMention:
+          opMeta.moderation = mod.subtype;
+          return this.postMetaDB.put(hash, opMeta);
+      }
+    }
+  }
+
   async insertPost(post: Post, proof: Proof): Promise<Post> {
     const json = post.toJSON();
     const existing = await this.messageDB()
@@ -949,28 +1048,70 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
             this.removeFromPostlist(post),
             this.removeFromUserPosts(post),
             this.decrementCreatorPostCount(post),
-          ])
+          ]);
         } else if (
           post.subtype === PostMessageSubType.Reply ||
           post.subtype === PostMessageSubType.MirrorReply
         ) {
-          await Promise.all([
-            this.removeFromThread(post),
-            this.decrementReplyCount(post)
-          ]);
-        } else if ( post.subtype === PostMessageSubType.Repost) {
-          await Promise.all([
-            this.removeFromPostlist(post),
-            this.removeFromUserPosts(post),
-          ]);
+          await Promise.all([this.removeFromThread(post), this.decrementReplyCount(post)]);
+        } else if (post.subtype === PostMessageSubType.Repost) {
+          await Promise.all([this.removeFromPostlist(post), this.removeFromUserPosts(post)]);
         }
         return;
     }
   }
 
-  async decrementCreatorPostCount(post: Post): Promise<void> {
+  async incrementCreatorPostCount(post: Post): Promise<void> {
+    if (!post.creator) throw new Error('post has no creator');
     const creatorMeta = await this.userMetaDB.get(post.creator).catch(() => EmptyUserMeta());
-    creatorMeta.posts = creatorMeta.posts - 1;
+    creatorMeta.posts = creatorMeta.posts + 1;
+    return this.userMetaDB.put(post.creator, creatorMeta);
+  }
+
+  async incrementReplyCount(post: Post): Promise<void> {
+    const { hash } = parseMessageId(post.payload.reference);
+    const postMeta = await this.getPostMeta(hash);
+    postMeta.reply = postMeta.reply + 1;
+    return this.postMetaDB.put(hash, postMeta);
+  }
+
+  async incrementRepostCount(post: Post): Promise<void> {
+    const { hash } = parseMessageId(post.payload.reference);
+    const postMeta = await this.getPostMeta(hash);
+    postMeta.repost = postMeta.repost + 1;
+    return this.postMetaDB.put(hash, postMeta);
+  }
+
+  async incrementLikeCount(mod: Moderation): Promise<void> {
+    const { hash } = parseMessageId(mod.payload.reference);
+    const postMeta = await this.getPostMeta(hash);
+    const exist = await this.moderationsDB(hash)
+      .get(mod.creator ? mod.subtype + '_' + mod.creator : mod.hash(),)
+      .catch(() => null);
+
+    if (!exist) {
+      postMeta.like = postMeta.like + 1;
+      return this.postMetaDB.put(hash, postMeta);
+    }
+  }
+
+  async incrementBlockCount(mod: Moderation): Promise<void> {
+    const { hash } = parseMessageId(mod.payload.reference);
+    const postMeta = await this.getPostMeta(hash);
+    const exist = await this.moderationsDB(hash)
+      .get(mod.creator ? mod.subtype + '_' + mod.creator : mod.hash())
+      .catch(() => null);
+
+    if (!exist) {
+      postMeta.block = postMeta.block + 1;
+      return this.postMetaDB.put(hash, postMeta);
+    }
+  }
+
+  async decrementCreatorPostCount(post: Post): Promise<void> {
+    if (!post.creator) throw new Error('post has no creator');
+    const creatorMeta = await this.userMetaDB.get(post.creator).catch(() => EmptyUserMeta());
+    creatorMeta.posts = Math.max(creatorMeta.posts - 1);
     return this.userMetaDB.put(post.creator, creatorMeta);
   }
 
@@ -988,15 +1129,15 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return this.postMetaDB.put(hash, postMeta);
   }
 
-  async decrementLikeCount(post: Post): Promise<void> {
-    const { hash } = parseMessageId(post.payload.reference);
+  async decrementLikeCount(mod: Moderation): Promise<void> {
+    const { hash } = parseMessageId(mod.payload.reference);
     const postMeta = await this.getPostMeta(hash);
     postMeta.like = Math.max(postMeta.like - 1, 0);
     return this.postMetaDB.put(hash, postMeta);
   }
 
-  async decrementBlockCount(post: Post): Promise<void> {
-    const { hash } = parseMessageId(post.payload.reference);
+  async decrementBlockCount(mod: Moderation): Promise<void> {
+    const { hash } = parseMessageId(mod.payload.reference);
     const postMeta = await this.getPostMeta(hash);
     postMeta.block = Math.max(postMeta.block - 1, 0);
     return this.postMetaDB.put(hash, postMeta);
@@ -1195,7 +1336,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   async getReplies(hash: string, limit?: number, offset?: number | string): Promise<Post[]> {
-    const options: any = { valueEncoding: 'json' };
+    const options: any = { valueEncoding: 'json', reverse: true };
 
     if (typeof limit === 'number') options.limit = limit;
 

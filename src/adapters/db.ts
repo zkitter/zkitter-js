@@ -53,4 +53,27 @@ export interface GenericDBAdapterInterface {
   getChatByECDH: (ecdh: string) => Promise<ChatMeta[]>;
   getChatMeta: (ecdh: string, chatId: string) => Promise<ChatMeta | null>;
   getChatMessages: (chatId: string, limit?: number, offset?: number | string) => Promise<Chat[]>;
+  addMessage: (msg: AnyMessage) => Promise<void>;
+  addProof: (msg: AnyMessage, proof: Proof) => Promise<void>;
+  addUserMessage: (msg: AnyMessage) => Promise<void>;
+  addToPostlist: (post: Post) => Promise<void>;
+  addToUserPosts: (post: Post) => Promise<void>;
+  addToGroupPosts: (post: Post, proof: Proof) => Promise<void>;
+  addToThread: (post: Post) => Promise<void>;
+  incrementCreatorPostCount: (post: Post) => Promise<void>;
+  incrementReplyCount: (post: Post) => Promise<void>;
+  incrementRepostCount: (post: Post) => Promise<void>;
+  incrementLikeCount: (mod: Moderation) => Promise<void>;
+  incrementBlockCount: (mod: Moderation) => Promise<void>;
+  decrementCreatorPostCount: (post: Post) => Promise<void>;
+  decrementReplyCount: (post: Post) => Promise<void>;
+  decrementRepostCount: (post: Post) => Promise<void>;
+  decrementLikeCount: (mod: Moderation) => Promise<void>;
+  decrementBlockCount: (mod: Moderation) => Promise<void>;
+  removeFromPostlist: (post: Post) => Promise<void>;
+  removeFromUserPosts: (post: Post) => Promise<void>;
+  removeFromThread: (post: Post) => Promise<void>;
+  addToThreadModerations: (mod: Moderation) => Promise<void>;
+  updateThreadVisibility(mod: Moderation): Promise<void>;
+  updateThreadModeration(mod: Moderation): Promise<void>;
 }

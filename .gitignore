@@ -9,3 +9,5 @@ bin/
 *.log
 webdev/
 zkitterdb/
+zkitter_test
+zkitter_test_user

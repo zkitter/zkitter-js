@@ -18,12 +18,16 @@ export type MessageOption = {
 };
 
 export type AnyMessage = Post | Moderation | Connection | Profile | Chat | Revert;
+export type AnyJSON = PostJSON | ModerationJSON | ConnectionJSON | ProfileJSON | ChatJSON | RevertJSON;
 
 export class Message {
   type: MessageType;
   subtype: string;
   creator: string;
   createdAt: Date;
+  private _hex: string;
+  private _hash: string;
+  private _json: AnyJSON;
 
   static getType(type: string): MessageType | null {
     switch (type.toUpperCase()) {
@@ -72,16 +76,31 @@ export class Message {
     this.createdAt = opt.createdAt || new Date();
   }
 
+  genJSON(): AnyJSON {
+    throw new Error('genJSON is not implemented');
+  }
+
+  genHash(): string {
+    throw new Error('genHash is not implemented');
+  }
+
+  genHex(): string {
+    throw new Error('genHex is not implemented');
+  }
+
   toJSON() {
-    throw new Error('toJSON is not implemented');
+    if (!this._json) this._json = this.genJSON();
+    return this._json;
   }
 
   hash(): string {
-    throw new Error('toHex is not implemented');
+    if (!this._hash) this._hash = this.genHash();
+    return this._hash;
   }
 
   toHex(): string {
-    throw new Error('toHex is not implemented');
+    if (!this._hex) this._hex = this.genHex();
+    return this._hex;
   }
 }
 
@@ -204,24 +223,28 @@ export class Post extends Message {
     };
   }
 
-  hash() {
+  toJSON(): PostJSON {
+    return super.toJSON() as PostJSON;
+  }
+
+  genHash() {
     if (this.tweetId) return this.tweetId;
     return crypto.createHash('sha256').update(this.toHex()).digest('hex');
   }
 
-  toJSON(): PostJSON {
+  genJSON(): PostJSON {
     const hash = this.hash();
     return {
       createdAt: this.createdAt.getTime(),
       hash: hash,
       messageId: this.creator ? `${this.creator}/${hash}` : hash,
-      payload: this.payload,
+      payload: {...this.payload},
       subtype: this.subtype,
       type: this.type,
     };
   }
 
-  toHex() {
+  genHex() {
     const type = encodeString(this.type, 2);
     const subtype = encodeString(this.subtype, 2);
     const creator = encodeString(this.creator, 3);
@@ -333,11 +356,15 @@ export class Moderation extends Message {
     };
   }
 
-  hash() {
+  toJSON(): ModerationJSON {
+    return super.toJSON() as ModerationJSON;
+  }
+
+  genHash() {
     return crypto.createHash('sha256').update(this.toHex()).digest('hex');
   }
 
-  toJSON(): ModerationJSON {
+  genJSON(): ModerationJSON {
     const hash = this.hash();
     return {
       createdAt: this.createdAt.getTime(),
@@ -349,7 +376,7 @@ export class Moderation extends Message {
     };
   }
 
-  toHex() {
+  genHex() {
     const type = encodeString(this.type, 2);
     const subtype = encodeString(this.subtype, 2);
     const creator = encodeString(this.creator, 3);
@@ -453,11 +480,15 @@ export class Connection extends Message {
     };
   }
 
-  hash(): string {
+  toJSON(): ConnectionJSON {
+    return super.toJSON() as ConnectionJSON;
+  }
+
+  genHash(): string {
     return crypto.createHash('sha256').update(this.toHex()).digest('hex');
   }
 
-  toJSON(): ConnectionJSON {
+  genJSON(): ConnectionJSON {
     const hash = this.hash();
     return {
       createdAt: this.createdAt.getTime(),
@@ -469,7 +500,7 @@ export class Connection extends Message {
     };
   }
 
-  toHex(): string {
+  genHex(): string {
     const type = encodeString(this.type, 2);
     const subtype = encodeString(this.subtype, 2);
     const creator = encodeString(this.creator, 3);
@@ -588,11 +619,15 @@ export class Profile extends Message {
     };
   }
 
-  hash(): string {
+  toJSON(): ProfileJSON {
+    return super.toJSON() as ProfileJSON;
+  }
+
+  genHash(): string {
     return crypto.createHash('sha256').update(this.toHex()).digest('hex');
   }
 
-  toJSON(): ProfileJSON {
+  genJSON(): ProfileJSON {
     const hash = this.hash();
     return {
       createdAt: this.createdAt.getTime(),
@@ -604,7 +639,7 @@ export class Profile extends Message {
     };
   }
 
-  toHex(): string {
+  genHex(): string {
     const type = encodeString(this.type, 2);
     const subtype = encodeString(this.subtype, 2);
     const creator = encodeString(this.creator, 3);
@@ -781,11 +816,15 @@ export class Chat extends Message {
     };
   }
 
-  hash() {
+  toJSON(): ChatJSON {
+    return super.toJSON() as ChatJSON;
+  }
+
+  genHash() {
     return crypto.createHash('sha256').update(this.toHex()).digest('hex');
   }
 
-  toJSON(): ChatJSON {
+  genJSON(): ChatJSON {
     const hash = this.hash();
     return {
       createdAt: this.createdAt.getTime(),
@@ -797,7 +836,7 @@ export class Chat extends Message {
     };
   }
 
-  toHex() {
+  genHex() {
     const type = encodeString(this.type, 2);
     const subtype = encodeString(this.subtype, 2);
     const creator = encodeString(this.creator, 3);
@@ -888,11 +927,15 @@ export class Revert extends Message {
     };
   }
 
-  hash() {
+  toJSON(): RevertJSON {
+    return super.toJSON() as RevertJSON;
+  }
+
+  genHash() {
     return crypto.createHash('sha256').update(this.toHex()).digest('hex');
   }
 
-  toJSON(): RevertJSON {
+  genJSON(): RevertJSON {
     const hash = this.hash();
     return {
       createdAt: this.createdAt.getTime(),
@@ -904,7 +947,7 @@ export class Revert extends Message {
     };
   }
 
-  toHex() {
+  genHex() {
     const type = encodeString(this.type, 2);
     const creator = encodeString(this.creator, 3);
     const createdAt = encodeNumber(this.createdAt.getTime(), 12);

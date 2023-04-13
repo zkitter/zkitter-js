@@ -13,7 +13,7 @@ import {
   Revert,
 } from './message';
 
-tape('Zkitter Message Format', async t => {
+tape('Zkitter Message Format', t => {
   t.test('Post', test => {
     const msg = new Post({
       type: MessageType.Post,
