@@ -130,6 +130,17 @@ export class Post extends Message {
 
   tweetId?: string;
 
+  static fromJSON(json: PostJSON): Post {
+    const { creator, hash } = parseMessageId(json.messageId);
+    return new Post({
+      type: json.type,
+      subtype: json.subtype,
+      createdAt: new Date(json.createdAt),
+      creator: creator,
+      payload: json.payload,
+    });
+  }
+
   static fromHex(hex: string) {
     let d = hex;
 
@@ -259,6 +270,17 @@ export class Moderation extends Message {
 
   payload: ModerationMessagePayload;
 
+  static fromJSON(json: ModerationJSON): Moderation {
+    const { creator } = parseMessageId(json.messageId);
+    return new Moderation({
+      type: json.type,
+      subtype: json.subtype,
+      createdAt: new Date(json.createdAt),
+      creator: creator,
+      payload: json.payload,
+    });
+  }
+
   static fromHex(hex: string) {
     let d = hex;
 
@@ -372,6 +394,17 @@ export class Connection extends Message {
 
   payload: ConnectionMessagePayload;
 
+  static fromJSON(json: ConnectionJSON): Connection {
+    const { creator } = parseMessageId(json.messageId);
+    return new Connection({
+      type: json.type,
+      subtype: json.subtype,
+      createdAt: new Date(json.createdAt),
+      creator: creator,
+      payload: json.payload,
+    });
+  }
+
   static fromHex(hex: string): Connection {
     let d = hex;
 
@@ -388,7 +421,7 @@ export class Connection extends Message {
         name,
       },
       subtype: subtype as ConnectionMessageSubType,
-      type: type as MessageType.Profile,
+      type: type as MessageType.Connection,
     });
 
     function cb(n: number) {
@@ -484,6 +517,17 @@ export class Profile extends Message {
   subtype: ProfileMessageSubType;
 
   payload: ProfileMessagePayload;
+
+  static fromJSON(json: ProfileJSON): Profile {
+    const { creator } = parseMessageId(json.messageId);
+    return new Profile({
+      type: json.type,
+      subtype: json.subtype,
+      createdAt: new Date(json.createdAt),
+      creator: creator,
+      payload: json.payload,
+    });
+  }
 
   static fromHex(hex: string): Profile {
     let d = hex;
@@ -672,6 +716,17 @@ export class Chat extends Message {
 
   payload: ChatMessagePayload;
 
+  static fromJSON(json: ChatJSON): Chat {
+    const { creator } = parseMessageId(json.messageId);
+    return new Chat({
+      type: json.type,
+      subtype: json.subtype,
+      createdAt: new Date(json.createdAt),
+      creator: creator,
+      payload: { ...json.payload },
+    });
+  }
+
   static fromHex(hex: string) {
     let d = hex;
 
@@ -736,7 +791,7 @@ export class Chat extends Message {
       createdAt: this.createdAt.getTime(),
       hash: hash,
       messageId: this.creator ? `${this.creator}/${hash}` : hash,
-      payload: this.payload,
+      payload: { ...this.payload },
       subtype: this.subtype,
       type: this.type,
     };
@@ -792,6 +847,16 @@ export class Revert extends Message {
 
   payload: RevertMessagePayload;
 
+  static fromJSON(json: RevertJSON): Revert {
+    const { creator } = parseMessageId(json.messageId);
+    return new Revert({
+      type: json.type,
+      createdAt: new Date(json.createdAt),
+      creator: creator,
+      payload: json.payload,
+    });
+  }
+
   static fromHex(hex: string) {
     let d = hex;
 
@@ -844,11 +909,6 @@ export class Revert extends Message {
     const creator = encodeString(this.creator, 3);
     const createdAt = encodeNumber(this.createdAt.getTime(), 12);
     const reference = encodeString(this.payload.reference, 3);
-    return (
-      type +
-      creator +
-      createdAt +
-      reference
-    );
+    return type + creator + createdAt + reference;
   }
 }

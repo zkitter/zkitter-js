@@ -1,24 +1,20 @@
-import { ZkIdentity } from '@zk-kit/identity';
-import { ConstructorOptions } from 'eventemitter2';
+import {ZkIdentity} from '@zk-kit/identity';
+import {ConstructorOptions} from 'eventemitter2';
 import Web3 from 'web3';
-import { Contract } from 'web3-eth-contract';
-import { GenericDBAdapterInterface } from '../adapters/db';
-import { GenericGroupAdapter } from '../adapters/group';
-import { InterepGroup } from '../adapters/groups/interep';
-import { TazGroup } from '../adapters/groups/taz';
-import { AlreadyExistError, LevelDBAdapter } from '../adapters/leveldb';
-import { ChatMeta } from '../models/chats';
-import { PostMeta } from '../models/postmeta';
-import { Proof } from '../models/proof';
-import { User } from '../models/user';
-import { UserMeta } from '../models/usermeta';
-import { decrypt, deriveSharedSecret, encrypt, randomBytes } from '../utils/crypto';
-import { Filter, FilterOptions } from '../utils/filters';
-import {
-  generateECDHKeyPairFromZKIdentity,
-  generateECDHWithP256,
-  Identity,
-} from '../utils/identity';
+import {Contract} from 'web3-eth-contract';
+import {GenericDBAdapterInterface} from '../adapters/db';
+import {GenericGroupAdapter} from '../adapters/group';
+import {InterepGroup} from '../adapters/groups/interep';
+import {TazGroup} from '../adapters/groups/taz';
+import {AlreadyExistError, LevelDBAdapter} from '../adapters/leveldb';
+import {ChatMeta} from '../models/chats';
+import {PostMeta} from '../models/postmeta';
+import {Proof} from '../models/proof';
+import {User} from '../models/user';
+import {UserMeta} from '../models/usermeta';
+import {decrypt, deriveSharedSecret, encrypt, randomBytes} from '../utils/crypto';
+import {Filter, FilterOptions} from '../utils/filters';
+import {generateECDHKeyPairFromZKIdentity, generateECDHWithP256, Identity,} from '../utils/identity';
 import {
   Chat,
   ChatMessageSubType,
@@ -32,15 +28,15 @@ import {
   PostMessageSubType,
   Profile,
 } from '../utils/message';
-import { GenericService } from '../utils/svc';
-import { ChatService } from './chats';
-import { ConnectionService } from './connections';
-import { GroupService } from './groups';
-import { ModerationService } from './moderations';
-import { PostService } from './posts';
-import { ProfileService } from './profile';
-import { PubsubService } from './pubsub';
-import { UserService } from './users';
+import {GenericService} from '../utils/svc';
+import {ChatService} from './chats';
+import {ConnectionService} from './connections';
+import {GroupService} from './groups';
+import {ModerationService} from './moderations';
+import {PostService} from './posts';
+import {ProfileService} from './profile';
+import {PubsubService} from './pubsub';
+import {UserService} from './users';
 
 export enum ZkitterEvents {
   ArbitrumSynced = 'Users.ArbitrumSynced',
@@ -48,6 +44,7 @@ export enum ZkitterEvents {
   GroupSynced = 'Group.GroupSynced',
   NewGroupMemberCreated = 'Group.NewGroupMemberCreated',
   NewMessageCreated = 'Zkitter.NewMessageCreated',
+  MessageReverted = 'Zkitter.MessageReverted',
   InvalidEventData = 'Users.InvalidEventData',
   AlreadyExist = 'Level.AlreadyExist',
   HistoryDowload = 'History.Download',
@@ -400,6 +397,10 @@ export class Zkitter extends GenericService {
           await this.services.chats.insert(msg as Chat, proof);
           this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
           break;
+        case MessageType.Revert:
+
+          this.emit(ZkitterEvents.MessageReverted, msg, proof);
+          break;
       }
     } catch (e) {
       if (e === AlreadyExistError) {
@@ -408,6 +409,9 @@ export class Zkitter extends GenericService {
         console.error(e);
       }
     }
+  }
+
+  async revert(msg: Message, proof: Proof) {
   }
 
   async queryThread(address: string) {

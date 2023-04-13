@@ -19,6 +19,7 @@
     "tsc": "tsc --project tsconfig.compile.json",
     "build": "NODE_ENV=production concurrently --kill-others-on-fail npm:build-cli npm:build-lib npm:build-weblib npm:tsc",
     "start": "NODE_ENV=production npm run build && node ./build/server.js",
+    "test": "FORCE=true NODE_ENV=test TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' tape -r module-alias/register -r ts-node/register './src/**/*.test.ts' | tap-spec",
     "depcheck": "depcheck . --config=depcheckrc.json",
     "fix": "npm run lint:fix && npm run format:fix",
     "format:check": "prettier --check .",
@@ -34,7 +35,10 @@
   },
   "types": "dist/src/index.d.ts",
   "browser": "dist/browser.js",
-  "files": ["dist/", "readme.md"],
+  "files": [
+    "dist/",
+    "readme.md"
+  ],
   "dependencies": {
     "@nodeutils/defaults-deep": "^1.1.0",
     "@waku/byte-utils": "^0.0.2",
@@ -85,6 +89,7 @@
     "@typescript-eslint/parser": "^5.43.0",
     "@zkitter/eslint-config": "^1.0.2",
     "@zkitter/prettier-config": "^1.0.0",
+    "ajv": "^8.12.0",
     "assert": "^2.0.0",
     "browserify": "^17.0.0",
     "browserify-zlib": "^0.2.0",

@@ -34,6 +34,7 @@ export interface GenericDBAdapterInterface {
     offset?: number | string
   ) => Promise<AnyMessage[]>;
   getPostMeta: (postHash: string) => Promise<PostMeta>;
+  getMessage: (hash: string) => Promise<AnyMessage | null>;
   getPost: (hash: string) => Promise<Post | null>;
   getPosts: (limit?: number, offset?: number | string) => Promise<Post[]>;
   getFollowings: (address: string) => Promise<string[]>;

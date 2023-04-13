@@ -1,15 +1,12 @@
-import { BatchOperation, Level } from 'level';
-import { ChatMeta } from '../models/chats';
-import { GroupMember } from '../models/group';
-import { EmptyPostMeta, PostMeta } from '../models/postmeta';
-
-const charwise = require('charwise');
-
-import { Proof, ProofType } from '../models/proof';
-import { User } from '../models/user';
-import { EmptyUserMeta, UserMeta, UserMetaKey } from '../models/usermeta';
-import { deriveChatId } from '../utils/chat';
-import { Filter } from '../utils/filters';
+import {BatchOperation, Level} from 'level';
+import {ChatMeta} from '../models/chats';
+import {GroupMember} from '../models/group';
+import {EmptyPostMeta, PostMeta} from '../models/postmeta';
+import {Proof, ProofType} from '../models/proof';
+import {User} from '../models/user';
+import {EmptyUserMeta, UserMeta, UserMetaKey} from '../models/usermeta';
+import {deriveChatId} from '../utils/chat';
+import {Filter} from '../utils/filters';
 import {
   AnyMessage,
   Chat,
@@ -29,8 +26,11 @@ import {
   Profile,
   ProfileJSON,
   ProfileMessageSubType,
+  Revert,
 } from '../utils/message';
-import { GenericDBAdapterInterface } from './db';
+import {GenericDBAdapterInterface} from './db';
+
+const charwise = require('charwise');
 
 const keys = {
   APP: {
@@ -199,7 +199,8 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   async getUserCount(): Promise<number> {
-    return this.metaDB.get(keys.META.userCount).catch(() => 0);
+    const keys = await this.userDB.keys().all();
+    return keys.length;
   }
 
   async getArbitrumProvider(): Promise<string> {
@@ -227,11 +228,15 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     }
 
     if (group) {
-      return this.appDB.get(keys.APP.historyDownloaded + '/group').catch(() => false) as Promise<boolean>;
+      return this.appDB
+        .get(keys.APP.historyDownloaded + '/group')
+        .catch(() => false) as Promise<boolean>;
     }
 
     if (typeof user === 'string') {
-      return this.appDB.get(keys.APP.historyDownloaded + '/' + user).catch(() => false) as Promise<boolean>;
+      return this.appDB
+        .get(keys.APP.historyDownloaded + '/' + user)
+        .catch(() => false) as Promise<boolean>;
     }
 
     return this.appDB
@@ -273,25 +278,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   async updateUser(user: User): Promise<User> {
     const existing = await this.getUser(user.address);
 
-    if (!existing) {
-      const count = await this.metaDB.get(keys.META.userCount).catch(() => 0);
-      await this.db.batch([
-        {
-          key: user.address,
-          sublevel: this.userDB,
-          type: 'put',
-          // @ts-ignore
-          value: user,
-        },
-        {
-          key: keys.META.userCount,
-          sublevel: this.metaDB,
-          type: 'put',
-          // @ts-ignore
-          value: count + 1,
-        },
-      ]);
-    } else if (existing.joinedAt < user.joinedAt) {
+    if (!existing || existing.joinedAt < user.joinedAt) {
       await this.userDB.put(user.address, user);
     }
 
@@ -333,14 +320,28 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
     if (!json) return null;
 
-    const { creator } = parseMessageId(json.messageId);
-
     if (json.type === MessageType.Post) {
-      return new Post({
-        ...(json as PostJSON),
-        createdAt: new Date(json.createdAt),
-        creator,
-      });
+      return Post.fromJSON(json);
+    }
+
+    return null;
+  }
+
+  async getMessage(hash: string): Promise<AnyMessage | null> {
+    const json = await this.messageDB<PostJSON | ModerationJSON | ConnectionJSON | ProfileJSON | ChatJSON>()
+      .get(hash)
+      .catch(() => null);
+
+    if (!json) return null;
+
+    switch (json.type) {
+      case MessageType.Post:
+        return Post.fromJSON(json as PostJSON);
+      case MessageType.Moderation:
+      case MessageType.Connection:
+      case MessageType.Profile:
+      case MessageType.Chat:
+        return null;
     }
 
     return null;
@@ -808,7 +809,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     if (proof.type === ProofType.rln) {
       const groupId = await this.findGroupHash(
         proof.proof.publicSignals.merkleRoot as string,
-        proof.groupId,
+        proof.groupId
       );
       postMetaDirty = true;
       postMeta.groupId = groupId || '';
@@ -897,6 +898,124 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     await this.db.batch(operations);
 
     return post;
+  }
+
+  async revert(rvt: Revert, proof: Proof): Promise<void> {
+    const json = rvt.toJSON();
+    const existing = await this.messageDB()
+      .get(json.hash)
+      .catch(() => null);
+
+    if (existing) {
+      throw AlreadyExistError;
+    }
+
+    const { creator, hash } = parseMessageId(rvt.payload.reference);
+
+    const msg = await this.messageDB<{ type: MessageType }>()
+      .get(hash)
+      .catch(() => null);
+
+    if (!msg) return;
+
+    const operations: BatchOperation<any, any, any>[] = [
+      {
+        key: json.hash,
+        sublevel: this.messageDB(),
+        type: 'put',
+        value: json,
+      },
+      {
+        key: json.hash,
+        sublevel: this.proofDB(),
+        type: 'put',
+        value: proof,
+      },
+      {
+        key: charwise.encode(rvt.createdAt.getTime()),
+        sublevel: this.userMessageDB(rvt.creator),
+        type: 'put',
+        value: json.hash,
+      },
+    ];
+
+    await this.db.batch(operations);
+
+    switch (msg?.type) {
+      case MessageType.Post:
+        const post = msg as Post;
+        if (!post.payload.reference) {
+          await Promise.all([
+            this.removeFromPostlist(post),
+            this.removeFromUserPosts(post),
+            this.decrementCreatorPostCount(post),
+          ])
+        } else if (
+          post.subtype === PostMessageSubType.Reply ||
+          post.subtype === PostMessageSubType.MirrorReply
+        ) {
+          await Promise.all([
+            this.removeFromThread(post),
+            this.decrementReplyCount(post)
+          ]);
+        } else if ( post.subtype === PostMessageSubType.Repost) {
+          await Promise.all([
+            this.removeFromPostlist(post),
+            this.removeFromUserPosts(post),
+          ]);
+        }
+        return;
+    }
+  }
+
+  async decrementCreatorPostCount(post: Post): Promise<void> {
+    const creatorMeta = await this.userMetaDB.get(post.creator).catch(() => EmptyUserMeta());
+    creatorMeta.posts = creatorMeta.posts - 1;
+    return this.userMetaDB.put(post.creator, creatorMeta);
+  }
+
+  async decrementReplyCount(post: Post): Promise<void> {
+    const { hash } = parseMessageId(post.payload.reference);
+    const postMeta = await this.getPostMeta(hash);
+    postMeta.reply = Math.max(postMeta.reply - 1, 0);
+    return this.postMetaDB.put(hash, postMeta);
+  }
+
+  async decrementRepostCount(post: Post): Promise<void> {
+    const { hash } = parseMessageId(post.payload.reference);
+    const postMeta = await this.getPostMeta(hash);
+    postMeta.repost = Math.max(postMeta.repost - 1, 0);
+    return this.postMetaDB.put(hash, postMeta);
+  }
+
+  async decrementLikeCount(post: Post): Promise<void> {
+    const { hash } = parseMessageId(post.payload.reference);
+    const postMeta = await this.getPostMeta(hash);
+    postMeta.like = Math.max(postMeta.like - 1, 0);
+    return this.postMetaDB.put(hash, postMeta);
+  }
+
+  async decrementBlockCount(post: Post): Promise<void> {
+    const { hash } = parseMessageId(post.payload.reference);
+    const postMeta = await this.getPostMeta(hash);
+    postMeta.block = Math.max(postMeta.block - 1, 0);
+    return this.postMetaDB.put(hash, postMeta);
+  }
+
+  async removeFromPostlist(post: Post): Promise<void> {
+    const encodedKey = this.encodeMessageSortKey(post);
+    return this.postlistDB.del(encodedKey);
+  }
+
+  async removeFromUserPosts(post: Post): Promise<void> {
+    const encodedKey = charwise.encode(post.createdAt.getTime());
+    return this.userPostsDB(post.creator).del(encodedKey);
+  }
+
+  async removeFromThread(post: Post): Promise<void> {
+    const encodedKey = this.encodeMessageSortKey(post);
+    const { hash } = parseMessageId(post.payload.reference);
+    return this.threadDB(hash).del(encodedKey);
   }
 
   async saveChatECDH(addressOrIdCommitment: string, ecdh: string) {
@@ -1407,7 +1526,9 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     let retValue;
 
     if (groupId) {
-      retValue = await this.groupRootsDB(hash).get(groupId).catch(() => null);
+      retValue = await this.groupRootsDB(hash)
+        .get(groupId)
+        .catch(() => null);
     }
 
     if (retValue) return retValue;
