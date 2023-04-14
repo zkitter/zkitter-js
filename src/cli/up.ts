@@ -3,12 +3,12 @@ import promptly from 'promptly';
 import { Zkitter } from '../services';
 import { UserServiceEvents } from '../services/users';
 import { initZkitter } from '../utils/cli';
+import { ZkitterEvents } from '../utils/events';
 import { error, success } from '../utils/logger';
 import { handleStatus } from './status';
 import { printPosts } from './timeline';
 import { handleWhois } from './whois';
 import { handleWrite } from './write';
-import {ZkitterEvents} from "../utils/events";
 
 export function up(program: Command) {
   program

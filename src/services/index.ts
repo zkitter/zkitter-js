@@ -1,20 +1,25 @@
-import {ZkIdentity} from '@zk-kit/identity';
-import {ConstructorOptions} from 'eventemitter2';
+import { ZkIdentity } from '@zk-kit/identity';
+import { ConstructorOptions } from 'eventemitter2';
 import Web3 from 'web3';
-import {Contract} from 'web3-eth-contract';
-import {GenericDBAdapterInterface} from '../adapters/db';
-import {GenericGroupAdapter} from '../adapters/group';
-import {InterepGroup} from '../adapters/groups/interep';
-import {TazGroup} from '../adapters/groups/taz';
-import {AlreadyExistError, LevelDBAdapter} from '../adapters/leveldb';
-import {ChatMeta} from '../models/chats';
-import {PostMeta} from '../models/postmeta';
-import {Proof} from '../models/proof';
-import {User} from '../models/user';
-import {UserMeta} from '../models/usermeta';
-import {decrypt, deriveSharedSecret, encrypt, randomBytes} from '../utils/crypto';
-import {Filter, FilterOptions} from '../utils/filters';
-import {generateECDHKeyPairFromZKIdentity, generateECDHWithP256, Identity,} from '../utils/identity';
+import { Contract } from 'web3-eth-contract';
+import { GenericDBAdapterInterface } from '../adapters/db';
+import { GenericGroupAdapter } from '../adapters/group';
+import { InterepGroup } from '../adapters/groups/interep';
+import { TazGroup } from '../adapters/groups/taz';
+import { AlreadyExistError, LevelDBAdapter } from '../adapters/leveldb';
+import { ChatMeta } from '../models/chats';
+import { PostMeta } from '../models/postmeta';
+import { Proof } from '../models/proof';
+import { User } from '../models/user';
+import { UserMeta } from '../models/usermeta';
+import { decrypt, deriveSharedSecret, encrypt, randomBytes } from '../utils/crypto';
+import { ZkitterEvents } from '../utils/events';
+import { Filter, FilterOptions } from '../utils/filters';
+import {
+  generateECDHKeyPairFromZKIdentity,
+  generateECDHWithP256,
+  Identity,
+} from '../utils/identity';
 import {
   Chat,
   ChatMessageSubType,
@@ -28,12 +33,11 @@ import {
   PostMessageSubType,
   Profile,
 } from '../utils/message';
-import {GenericService} from '../utils/svc';
-import {GroupService} from './groups';
-import {PubsubService} from './pubsub';
-import {UserService} from './users';
-import {DataService} from "./db";
-import {ZkitterEvents} from "../utils/events";
+import { GenericService } from '../utils/svc';
+import { DataService } from './db';
+import { GroupService } from './groups';
+import { PubsubService } from './pubsub';
+import { UserService } from './users';
 
 export class Zkitter extends GenericService {
   web3: Web3;
@@ -101,6 +105,7 @@ export class Zkitter extends GenericService {
     }
 
     return new Zkitter({
+      data,
       db,
       filter: new Filter({
         ...options?.filterOptions,
@@ -110,7 +115,6 @@ export class Zkitter extends GenericService {
       historyAPI: options?.historyAPI,
       pubsub,
       users,
-      data,
     });
   }
 
@@ -132,8 +136,8 @@ export class Zkitter extends GenericService {
     this.historyAPI = opts.historyAPI || 'https://api.zkitter.com/v1/history';
 
     this.services = {
-      groups: opts.groups,
       data: opts.data,
+      groups: opts.groups,
       pubsub: opts.pubsub,
       users: opts.users,
     };
@@ -147,8 +151,8 @@ export class Zkitter extends GenericService {
 
   async status() {
     return {
-      users: await this.services.users.status(),
       filter: this.filter.json,
+      users: await this.services.users.status(),
     };
   }
 
@@ -186,7 +190,7 @@ export class Zkitter extends GenericService {
   }
 
   async query() {
-    const { all, address, group } = this.filter.json;
+    const { address, all, group } = this.filter.json;
 
     if (all) {
       await this.downloadHistoryFromAPI().catch(() => null);
@@ -342,9 +346,6 @@ export class Zkitter extends GenericService {
     }
   }
 
-  async revert(msg: Message, proof: Proof) {
-  }
-
   async queryThread(address: string) {
     return this.services.pubsub.queryThread(address, async (msg, proof) => {
       if (msg) {
@@ -397,80 +398,73 @@ export class Zkitter extends GenericService {
     const resp = await fetch(api);
     const json = await resp.json();
 
-    return new Promise(async (resolve, reject) => {
-      if (json.error) return reject(json.payload);
+    if (json.error) throw new Error(json.payload);
 
-      try {
-        const total = json.payload.length;
-        let i = 0;
+    const total = json.payload.length;
+    let i = 0;
 
-        for (const msg of json.payload) {
-          if (!msg) continue;
-          const { creator } = parseMessageId(msg.messageId);
-          let message: Message | null = null;
+    for (const msg of json.payload) {
+      if (!msg) continue;
+      const { creator } = parseMessageId(msg.messageId);
+      let message: Message | null = null;
 
-          switch (msg.type) {
-            case MessageType.Post:
-              message = new Post({
-                createdAt: new Date(msg.createdAt),
-                creator,
-                payload: msg.payload,
-                subtype: msg.subtype,
-                type: msg.type,
-              });
-              break;
-            case MessageType.Moderation:
-              message = new Moderation({
-                createdAt: new Date(msg.createdAt),
-                creator,
-                payload: msg.payload,
-                subtype: msg.subtype,
-                type: msg.type,
-              });
-              break;
-            case MessageType.Connection:
-              message = new Connection({
-                createdAt: new Date(msg.createdAt),
-                creator,
-                payload: msg.payload,
-                subtype: msg.subtype,
-                type: msg.type,
-              });
-              break;
-            case MessageType.Profile:
-              message = new Profile({
-                createdAt: new Date(msg.createdAt),
-                creator,
-                payload: msg.payload,
-                subtype: msg.subtype,
-                type: msg.type,
-              });
-              break;
-          }
-
-          if (message) {
-            await this.insert(message, {
-              group: msg.group,
-              proof: null,
-              type: '',
-            });
-          }
-
-          this.emit(ZkitterEvents.HistoryDowload, {
-            total: total,
-            currentIndex: ++i,
-            user,
-            group,
-            all: !user && !group,
+      switch (msg.type) {
+        case MessageType.Post:
+          message = new Post({
+            createdAt: new Date(msg.createdAt),
+            creator,
+            payload: msg.payload,
+            subtype: msg.subtype,
+            type: msg.type,
           });
-        }
-
-        await this.db.setHistoryDownloaded(true, user, group);
-        resolve();
-      } catch (e) {
-        reject(e);
+          break;
+        case MessageType.Moderation:
+          message = new Moderation({
+            createdAt: new Date(msg.createdAt),
+            creator,
+            payload: msg.payload,
+            subtype: msg.subtype,
+            type: msg.type,
+          });
+          break;
+        case MessageType.Connection:
+          message = new Connection({
+            createdAt: new Date(msg.createdAt),
+            creator,
+            payload: msg.payload,
+            subtype: msg.subtype,
+            type: msg.type,
+          });
+          break;
+        case MessageType.Profile:
+          message = new Profile({
+            createdAt: new Date(msg.createdAt),
+            creator,
+            payload: msg.payload,
+            subtype: msg.subtype,
+            type: msg.type,
+          });
+          break;
       }
-    });
+
+      if (message) {
+        await this.insert(message, {
+          group: msg.group,
+          proof: null,
+          type: '',
+        });
+      }
+
+      this.emit(ZkitterEvents.HistoryDowload, {
+        all: !user && !group,
+        currentIndex: ++i,
+        group,
+        total: total,
+        user,
+      });
+    }
+
+    await this.db.setHistoryDownloaded(true, user, group);
   }
 
   async getProof(hash: string): Promise<Proof | null> {

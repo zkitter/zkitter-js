@@ -18,7 +18,13 @@ export type MessageOption = {
 };
 
 export type AnyMessage = Post | Moderation | Connection | Profile | Chat | Revert;
-export type AnyJSON = PostJSON | ModerationJSON | ConnectionJSON | ProfileJSON | ChatJSON | RevertJSON;
+export type AnyJSON =
+  | PostJSON
+  | ModerationJSON
+  | ConnectionJSON
+  | ProfileJSON
+  | ChatJSON
+  | RevertJSON;
 
 export class Message {
   type: MessageType;
@@ -152,11 +158,11 @@ export class Post extends Message {
   static fromJSON(json: PostJSON): Post {
     const { creator, hash } = parseMessageId(json.messageId);
     return new Post({
-      type: json.type,
-      subtype: json.subtype,
       createdAt: new Date(json.createdAt),
       creator: creator,
       payload: json.payload,
+      subtype: json.subtype,
+      type: json.type,
     });
   }
 
@@ -238,7 +244,7 @@ export class Post extends Message {
       createdAt: this.createdAt.getTime(),
       hash: hash,
       messageId: this.creator ? `${this.creator}/${hash}` : hash,
-      payload: {...this.payload},
+      payload: { ...this.payload },
       subtype: this.subtype,
       type: this.type,
     };
@@ -297,11 +303,11 @@ export class Moderation extends Message {
   static fromJSON(json: ModerationJSON): Moderation {
     const { creator } = parseMessageId(json.messageId);
     return new Moderation({
-      type: json.type,
-      subtype: json.subtype,
       createdAt: new Date(json.createdAt),
       creator: creator,
       payload: json.payload,
+      subtype: json.subtype,
+      type: json.type,
     });
   }
 
@@ -427,11 +433,11 @@ export class Connection extends Message {
   static fromJSON(json: ConnectionJSON): Connection {
     const { creator } = parseMessageId(json.messageId);
     return new Connection({
-      type: json.type,
-      subtype: json.subtype,
       createdAt: new Date(json.createdAt),
       creator: creator,
       payload: json.payload,
+      subtype: json.subtype,
+      type: json.type,
     });
   }
 
@@ -555,11 +561,11 @@ export class Profile extends Message {
   static fromJSON(json: ProfileJSON): Profile {
     const { creator } = parseMessageId(json.messageId);
     return new Profile({
-      type: json.type,
-      subtype: json.subtype,
       createdAt: new Date(json.createdAt),
       creator: creator,
       payload: json.payload,
+      subtype: json.subtype,
+      type: json.type,
     });
   }
 
@@ -758,11 +764,11 @@ export class Chat extends Message {
   static fromJSON(json: ChatJSON): Chat {
     const { creator } = parseMessageId(json.messageId);
     return new Chat({
-      type: json.type,
-      subtype: json.subtype,
       createdAt: new Date(json.createdAt),
       creator: creator,
       payload: { ...json.payload },
+      subtype: json.subtype,
+      type: json.type,
     });
   }
 
@@ -893,10 +899,10 @@ export class Revert extends Message {
   static fromJSON(json: RevertJSON): Revert {
     const { creator } = parseMessageId(json.messageId);
     return new Revert({
-      type: json.type,
       createdAt: new Date(json.createdAt),
       creator: creator,
       payload: json.payload,
+      type: json.type,
     });
   }
 

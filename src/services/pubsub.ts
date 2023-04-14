@@ -3,6 +3,7 @@ import { ConstructorOptions } from 'eventemitter2';
 import { createDecoder, createEncoder, waitForRemotePeer } from '@waku/core';
 import { createLightNode } from '@waku/create';
 import { LightNode, Protocols } from '@waku/interfaces';
+import { GenericDBAdapterInterface } from '../adapters/db';
 import { Message } from '../models/message';
 import { Proof, ProofType } from '../models/proof';
 import { sha256, signWithP256, verifySignatureP256 } from '../utils/crypto';
@@ -17,7 +18,8 @@ import {
   ModerationMessageSubType,
   parseMessageId,
   Post,
-  PostMessageSubType, Revert,
+  PostMessageSubType,
+  Revert,
 } from '../utils/message';
 import {
   chatTopic,
@@ -28,10 +30,9 @@ import {
 } from '../utils/pubsub';
 import { GenericService } from '../utils/svc';
 import { createRLNProof, verifyRLNProof } from '../utils/zk';
+import { DataService } from './db';
 import { GroupService } from './groups';
 import { UserService } from './users';
-import { DataService } from './db';
-import { GenericDBAdapterInterface } from '../adapters/db';
 
 export class PubsubService extends GenericService {
   waku: LightNode;
@@ -52,7 +53,7 @@ export class PubsubService extends GenericService {
       await waku.start();
       await waitForRemotePeer(waku, [Protocols.Store, Protocols.Filter, Protocols.LightPush]);
     }
-    return new PubsubService({ groups, topicPrefix, users, waku, db });
+    return new PubsubService({ db, groups, topicPrefix, users, waku });
   }
 
   constructor(
@@ -85,10 +86,10 @@ export class PubsubService extends GenericService {
     const hash = message.hash();
 
     switch (message.type) {
-      case MessageType.Moderation: {
-        const msg = message as Moderation;
-        const { creator } = parseMessageId(msg.payload.reference);
-        const isOP = msg.creator === creator;
+      case MessageType.Moderation:
+        const mod = message as Moderation;
+        const { creator } = parseMessageId(mod.payload.reference);
+        const isOP = mod.creator === creator;
         if (!isOP) {
           if (
             [
@@ -96,21 +97,19 @@ export class PubsubService extends GenericService {
               ModerationMessageSubType.ThreadBlock,
               ModerationMessageSubType.ThreadFollow,
               ModerationMessageSubType.Global,
-            ].includes(msg.subtype)
+            ].includes(mod.subtype)
           ) {
             return false;
           }
         }
-      }
-
-      case MessageType.Revert: {
-        const { creator, hash } = parseMessageId((message as Revert).payload.reference);
+        break;
+      case MessageType.Revert:
+        const { hash } = parseMessageId((message as Revert).payload.reference);
         const msg = await this.db.getMessage(hash);
-
-        if (!msg || !creator || msg.creator !== creator) {
+        if (!msg || !message.creator || msg.creator !== message.creator) {
           return false;
         }
-      }
+        break;
     }
 
     switch (proof.type) {
@@ -345,7 +344,7 @@ export class PubsubService extends GenericService {
     const now = new Date();
 
     for await (const messagesPromises of this.waku.store.queryGenerator([decoder], {
-      timeFilter: { startTime: new Date(lastSync), endTime: now },
+      timeFilter: { endTime: now, startTime: new Date(lastSync) },
     })) {
       const wakuMessages = await Promise.all(messagesPromises);
 
@@ -371,7 +370,7 @@ export class PubsubService extends GenericService {
     const now = new Date();
 
     for await (const messagesPromises of this.waku.store.queryGenerator([decoder], {
-      timeFilter: { startTime: new Date(lastSync), endTime: now },
+      timeFilter: { endTime: now, startTime: new Date(lastSync) },
     })) {
       const wakuMessages = await Promise.all(messagesPromises);
 
@@ -396,7 +395,7 @@ export class PubsubService extends GenericService {
     const now = new Date();
 
     for await (const messagesPromises of this.waku.store.queryGenerator([decoder], {
-      timeFilter: { startTime: new Date(lastSync), endTime: now },
+      timeFilter: { endTime: now, startTime: new Date(lastSync) },
     })) {
       const wakuMessages = await Promise.all(messagesPromises);
 
@@ -457,7 +456,6 @@ export class PubsubService extends GenericService {
     return lastSync;
   }
 
-
   private async setLastSyncFromFilter(filter: Filter, date: Date): Promise<void> {
     const json = filter.json;
 
@@ -481,7 +479,7 @@ export class PubsubService extends GenericService {
     const now = new Date();
 
     for await (const messagesPromises of this.waku.store.queryGenerator(decoders, {
-      timeFilter: { startTime: new Date(lastSync), endTime: now },
+      timeFilter: { endTime: now, startTime: new Date(lastSync) },
     })) {
       const wakuMessages = await Promise.all(messagesPromises);
 

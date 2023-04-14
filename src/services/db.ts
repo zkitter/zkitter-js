@@ -1,6 +1,7 @@
-import { GenericService } from '../utils/svc';
 import { ConstructorOptions } from 'eventemitter2';
 import { GenericDBAdapterInterface } from '../adapters/db';
+import { Proof } from '../models/proof';
+import { ZkitterEvents } from '../utils/events';
 import {
   Chat,
   ChatMessageSubType,
@@ -17,8 +18,7 @@ import {
   ProfileMessageSubType,
   Revert,
 } from '../utils/message';
-import { Proof } from '../models/proof';
-import { ZkitterEvents } from '../utils/events';
+import { GenericService } from '../utils/svc';
 
 export class DataService extends GenericService {
   db: GenericDBAdapterInterface;

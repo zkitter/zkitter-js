@@ -35,10 +35,7 @@
   },
   "types": "dist/src/index.d.ts",
   "browser": "dist/browser.js",
-  "files": [
-    "dist/",
-    "readme.md"
-  ],
+  "files": ["dist/", "readme.md"],
   "dependencies": {
     "@nodeutils/defaults-deep": "^1.1.0",
     "@waku/byte-utils": "^0.0.2",

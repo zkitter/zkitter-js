@@ -15,23 +15,21 @@ export { EmptyUserMeta, type UserMeta } from './models/usermeta';
 
 export { Zkitter } from './services';
 
-export {
-  deriveChatId,
-} from './utils/chat';
+export { deriveChatId } from './utils/chat';
 
 export {
-  sha256,
-  signWithP256,
   decrypt,
   deriveSharedSecret,
-  randomBytes,
   encrypt,
+  randomBytes,
+  sha256,
+  signWithP256,
   verifySignatureP256,
 } from './utils/crypto';
 
 export * as Utils from './utils/encoding';
 
-export type {ZkitterEvents} from './utils/events';
+export type { ZkitterEvents } from './utils/events';
 
 export { Filter, type FilterOptions } from './utils/filters';
 export {
@@ -39,10 +37,10 @@ export {
   generateECDHKeyPairFromZKIdentity,
   generateECDHWithP256,
   generateIdentity,
+  generateP256FromHex,
+  generateP256FromSeed,
   generateZkIdentityFromHex,
   generateZKIdentityWithP256,
-  generateP256FromSeed,
-  generateP256FromHex,
 } from './utils/identity';
 export { Chat, Connection, Message, Moderation, Post, Profile, Revert } from './utils/message';
 export {

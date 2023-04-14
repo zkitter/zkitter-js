@@ -1,8 +1,8 @@
-import tape from 'tape';
-import * as path from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
+import tape from 'tape';
 import { LevelDBAdapter } from '../adapters/leveldb';
-import { DataService } from './db';
+import { ProofType, RLNProof, SignatureProof } from '../models/proof';
 import {
   Chat,
   ChatMessageSubType,
@@ -17,7 +17,7 @@ import {
   ProfileMessageSubType,
   Revert,
 } from '../utils/message';
-import { ProofType, RLNProof, SignatureProof } from '../models/proof';
+import { DataService } from './db';
 
 tape('LevelDB Adapter', async t => {
   const cwd = process.cwd();
@@ -29,8 +29,8 @@ tape('LevelDB Adapter', async t => {
   // Initialize DB with posts
   const opA = makePost('hello earth');
   const opB = makePost('hello moon', 'userB');
-  const { messageId: messageIdA, hash: hashA } = opA.toJSON();
-  const { messageId: messageIdB, hash: hashB } = opB.toJSON();
+  const { hash: hashA, messageId: messageIdA } = opA.toJSON();
+  const { hash: hashB, messageId: messageIdB } = opB.toJSON();
 
   await db.insertMessage(opA, mockUserProof('a'));
   await db.insertMessage(opB, mockUserProof('b'));
@@ -617,11 +617,26 @@ tape('LevelDB Adapter', async t => {
   });
 
   t.test('revert connections', async test => {
-    await db.insertMessage(makeRevert(userBFollowsUserA.toJSON().messageId, 'userZ'), mockUserProof());
-    await db.insertMessage(makeRevert(userCFollowsUserA.toJSON().messageId, 'userZ'), mockUserProof());
-    await db.insertMessage(makeRevert(userEBlocksUserA.toJSON().messageId, 'userZ'), mockUserProof());
-    await db.insertMessage(makeRevert(userEInviteUserA.toJSON().messageId, 'userZ'), mockUserProof());
-    await db.insertMessage(makeRevert(userAAcceptsUserE.toJSON().messageId, 'userZ'), mockUserProof());
+    await db.insertMessage(
+      makeRevert(userBFollowsUserA.toJSON().messageId, 'userZ'),
+      mockUserProof()
+    );
+    await db.insertMessage(
+      makeRevert(userCFollowsUserA.toJSON().messageId, 'userZ'),
+      mockUserProof()
+    );
+    await db.insertMessage(
+      makeRevert(userEBlocksUserA.toJSON().messageId, 'userZ'),
+      mockUserProof()
+    );
+    await db.insertMessage(
+      makeRevert(userEInviteUserA.toJSON().messageId, 'userZ'),
+      mockUserProof()
+    );
+    await db.insertMessage(
+      makeRevert(userAAcceptsUserE.toJSON().messageId, 'userZ'),
+      mockUserProof()
+    );
 
     const userMetaA = await ldb.getUserMeta('userA');
     const userMetaB = await ldb.getUserMeta('userB');
@@ -631,14 +646,37 @@ tape('LevelDB Adapter', async t => {
     test.equal(userMetaA.followers, 5, 'it should ignore non-creator revert');
     test.equal(userMetaB.following, 1, 'it should ignore non-creator revert');
     test.equal(userMetaE.blocking, 1, 'it should ignore non-creator revert');
-    test.equal((await ldb.getConnections('userA')).filter(conn => conn.subtype === 'MEMBER_INVITE').length, 1, 'it should ignore non-creator revert');
-    test.equal((await ldb.getConnections('userE')).filter(conn => conn.subtype === 'MEMBER_ACCEPT').length, 1, 'it should ignore non-creator revert');
+    test.equal(
+      (await ldb.getConnections('userA')).filter(conn => conn.subtype === 'MEMBER_INVITE').length,
+      1,
+      'it should ignore non-creator revert'
+    );
+    test.equal(
+      (await ldb.getConnections('userE')).filter(conn => conn.subtype === 'MEMBER_ACCEPT').length,
+      1,
+      'it should ignore non-creator revert'
+    );
 
-    await db.insertMessage(makeRevert(userBFollowsUserA.toJSON().messageId, 'userB'), mockUserProof());
-    await db.insertMessage(makeRevert(userCFollowsUserA.toJSON().messageId, 'userC'), mockUserProof());
-    await db.insertMessage(makeRevert(userEBlocksUserA.toJSON().messageId, 'userE'), mockUserProof());
-    await db.insertMessage(makeRevert(userEInviteUserA.toJSON().messageId, 'userE'), mockUserProof());
-    await db.insertMessage(makeRevert(userAAcceptsUserE.toJSON().messageId, 'userA'), mockUserProof());
+    await db.insertMessage(
+      makeRevert(userBFollowsUserA.toJSON().messageId, 'userB'),
+      mockUserProof()
+    );
+    await db.insertMessage(
+      makeRevert(userCFollowsUserA.toJSON().messageId, 'userC'),
+      mockUserProof()
+    );
+    await db.insertMessage(
+      makeRevert(userEBlocksUserA.toJSON().messageId, 'userE'),
+      mockUserProof()
+    );
+    await db.insertMessage(
+      makeRevert(userEInviteUserA.toJSON().messageId, 'userE'),
+      mockUserProof()
+    );
+    await db.insertMessage(
+      makeRevert(userAAcceptsUserE.toJSON().messageId, 'userA'),
+      mockUserProof()
+    );
 
     const newUserMetaA = await ldb.getUserMeta('userA');
     const newUserMetaB = await ldb.getUserMeta('userB');
@@ -648,15 +686,23 @@ tape('LevelDB Adapter', async t => {
     test.equal(newUserMetaA.followers, 3, 'it should decrement followers');
     test.equal(newUserMetaB.following, 0, 'it should decrement following');
     test.equal(newUserMetaE.blocking, 0, 'it should decrement blocking');
-    test.equal((await ldb.getConnections('userA')).filter(conn => conn.subtype === 'MEMBER_INVITE').length, 0, 'it should remove connections');
-    test.equal((await ldb.getConnections('userE')).filter(conn => conn.subtype === 'MEMBER_ACCEPT').length, 0, 'it should remove connections');
+    test.equal(
+      (await ldb.getConnections('userA')).filter(conn => conn.subtype === 'MEMBER_INVITE').length,
+      0,
+      'it should remove connections'
+    );
+    test.equal(
+      (await ldb.getConnections('userE')).filter(conn => conn.subtype === 'MEMBER_ACCEPT').length,
+      0,
+      'it should remove connections'
+    );
 
     test.end();
   });
 
   t.teardown(async () => {
-    await fs.promises.rm(dbPath, { recursive: true, force: true });
-    await fs.promises.rm(udbPath, { recursive: true, force: true });
+    await fs.promises.rm(dbPath, { force: true, recursive: true });
+    await fs.promises.rm(udbPath, { force: true, recursive: true });
   });
 
   t.end();
@@ -664,35 +710,35 @@ tape('LevelDB Adapter', async t => {
 
 function makePost(content: string, creator = 'userA'): Post {
   return new Post({
-    type: MessageType.Post,
-    subtype: PostMessageSubType.Default,
     creator,
     payload: {
       content,
     },
+    subtype: PostMessageSubType.Default,
+    type: MessageType.Post,
   });
 }
 
 function makeReply(reference: string, content: string, creator = 'userA'): Post {
   return new Post({
-    type: MessageType.Post,
-    subtype: PostMessageSubType.Reply,
     creator,
     payload: {
       content,
       reference,
     },
+    subtype: PostMessageSubType.Reply,
+    type: MessageType.Post,
   });
 }
 
 function makeRepost(reference: string, creator = 'userA'): Post {
   return new Post({
-    type: MessageType.Post,
-    subtype: PostMessageSubType.Repost,
     creator,
     payload: {
       reference,
     },
+    subtype: PostMessageSubType.Repost,
+    type: MessageType.Post,
   });
 }
 
@@ -702,22 +748,22 @@ function makeModeration(
   creator = 'userA'
 ): Moderation {
   return new Moderation({
-    type: MessageType.Moderation,
-    subtype: subtype,
     creator,
     payload: {
       reference,
     },
+    subtype: subtype,
+    type: MessageType.Moderation,
   });
 }
 
 function makeRevert(reference: string, creator = 'userA'): Revert {
   return new Revert({
-    type: MessageType.Revert,
     creator,
     payload: {
       reference,
     },
+    type: MessageType.Revert,
   });
 }
 
@@ -727,12 +773,12 @@ function makeConnection(
   creator = 'userA'
 ): Connection {
   return new Connection({
-    type: MessageType.Connection,
-    subtype: subtype,
     creator,
     payload: {
       name,
     },
+    subtype: subtype,
+    type: MessageType.Connection,
   });
 }
 
@@ -743,13 +789,13 @@ function makeProfile(
   creator = 'userA'
 ): Profile {
   return new Profile({
-    type: MessageType.Profile,
-    subtype: subtype,
     creator,
     payload: {
       key,
       value,
     },
+    subtype: subtype,
+    type: MessageType.Profile,
   });
 }
 
@@ -762,45 +808,45 @@ function makeChat(
   creator = 'userA'
 ): Chat {
   return new Chat({
-    type: MessageType.Chat,
-    subtype: subtype,
     creator,
     payload: {
       encryptedContent,
-      senderECDH,
       receiverECDH,
+      senderECDH,
       senderSeed,
     },
+    subtype: subtype,
+    type: MessageType.Chat,
   });
 }
 
 function mockUserProof(signature = ''): SignatureProof {
   return {
-    type: ProofType.signature,
     signature,
+    type: ProofType.signature,
   };
 }
 
 function mockGroupProof(groupId = 'testing_dev_group'): RLNProof {
   return {
-    type: ProofType.rln,
     groupId: groupId,
     proof: {
       proof: {
+        curve: 'test_curve',
         pi_a: [],
         pi_b: [],
         pi_c: [],
         protocol: 'test_protocol',
-        curve: 'test_curve',
       },
       publicSignals: {
-        yShare: 'yShare',
-        merkleRoot: 'merkleRoot',
-        internalNullifier: 'internalNullifier',
-        signalHash: 'signalHash',
         epoch: 'epoch',
+        internalNullifier: 'internalNullifier',
+        merkleRoot: 'merkleRoot',
         rlnIdentifier: 'rlnIdentifier',
+        signalHash: 'signalHash',
+        yShare: 'yShare',
       },
     },
+    type: ProofType.rln,
   };
 }

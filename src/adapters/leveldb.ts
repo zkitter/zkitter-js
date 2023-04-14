@@ -994,7 +994,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   async getReplies(hash: string, limit?: number, offset?: number | string): Promise<Post[]> {
-    const options: any = { valueEncoding: 'json', reverse: true };
+    const options: any = { reverse: true, valueEncoding: 'json' };
 
     if (typeof limit === 'number') options.limit = limit;
 
