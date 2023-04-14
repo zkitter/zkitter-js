@@ -2,7 +2,7 @@ import tape from 'tape';
 import * as path from 'path';
 import * as fs from 'fs';
 import { LevelDBAdapter } from '../adapters/leveldb';
-import { DBService } from './db';
+import { DataService } from './db';
 import {
   Chat,
   ChatMessageSubType,
@@ -23,7 +23,7 @@ tape('LevelDB Adapter', async t => {
   const dbPath = path.join(cwd, 'zkitter_test');
   const udbPath = path.join(cwd, 'zkitter_test_user');
   const ldb = await LevelDBAdapter.initialize(dbPath, udbPath);
-  const db = new DBService({ db: ldb });
+  const db = new DataService({ db: ldb });
 
   // Initialize DB with posts
   const opA = makePost('hello earth');

@@ -18,10 +18,6 @@ export class PostService extends GenericService {
     this.db = props.db;
   }
 
-  async insert(post: Post, proof: Proof) {
-    return this.db.insertPost(post, proof);
-  }
-
   async getPostMeta(postHash: string): Promise<PostMeta> {
     return this.db.getPostMeta(postHash);
   }

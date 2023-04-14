@@ -37,18 +37,8 @@ import {PostService} from './posts';
 import {ProfileService} from './profile';
 import {PubsubService} from './pubsub';
 import {UserService} from './users';
-
-export enum ZkitterEvents {
-  ArbitrumSynced = 'Users.ArbitrumSynced',
-  NewUserCreated = 'Users.NewUserCreated',
-  GroupSynced = 'Group.GroupSynced',
-  NewGroupMemberCreated = 'Group.NewGroupMemberCreated',
-  NewMessageCreated = 'Zkitter.NewMessageCreated',
-  MessageReverted = 'Zkitter.MessageReverted',
-  InvalidEventData = 'Users.InvalidEventData',
-  AlreadyExist = 'Level.AlreadyExist',
-  HistoryDowload = 'History.Download',
-}
+import {DataService} from "./db";
+import {ZkitterEvents} from "../utils/events";
 
 export class Zkitter extends GenericService {
   web3: Web3;
@@ -68,6 +58,7 @@ export class Zkitter extends GenericService {
     connections: ConnectionService;
     profile: ProfileService;
     groups: GroupService;
+    data: DataService;
   };
 
   private filter: Filter;
@@ -94,9 +85,12 @@ export class Zkitter extends GenericService {
     const profile = new ProfileService({ db });
     const chats = new ChatService({ db });
     const groups = new GroupService({ db });
+    const data = new DataService({ db });
+
     const pubsub = await PubsubService.initialize(
       users,
       groups,
+      db,
       options?.lazy,
       options?.topicPrefix
     );
@@ -136,6 +130,7 @@ export class Zkitter extends GenericService {
       profile,
       pubsub,
       users,
+      data,
     });
   }
 
@@ -150,6 +145,7 @@ export class Zkitter extends GenericService {
       profile: ProfileService;
       chats: ChatService;
       groups: GroupService;
+      data: DataService;
       historyAPI?: string;
       filter?: Filter;
     }
@@ -164,6 +160,7 @@ export class Zkitter extends GenericService {
       chats: opts.chats,
       connections: opts.connections,
       groups: opts.groups,
+      data: opts.data,
       moderations: opts.moderations,
       posts: opts.posts,
       profile: opts.profile,
@@ -198,13 +195,6 @@ export class Zkitter extends GenericService {
     }
   }
 
-  /**
-   * Subscribe to new messages (pass null will subcribe to all messages)
-   *
-   * @param options.groups string[]     list of group ids
-   * @param options.users string[]     list of user address
-   * @param options.threads string[]     list of thread hashes
-   */
   async subscribe() {
     if (this.unsubscribe) {
       await this.unsubscribe();
@@ -286,7 +276,7 @@ export class Zkitter extends GenericService {
   }
 
   async getPosts(limit?: number, offset?: string | number): Promise<Post[]> {
-    return this.services.posts.getPosts(limit, offset);
+    return this.db.getPosts(limit, offset);
   }
 
   async getFollowings(address: string): Promise<string[]> {
@@ -294,11 +284,11 @@ export class Zkitter extends GenericService {
   }
 
   async getHomefeed(filter: Filter, limit = -1, offset?: number | string): Promise<Post[]> {
-    return this.services.posts.getHomefeed(filter, limit, offset);
+    return this.db.getHomefeed(filter, limit, offset);
   }
 
   async getUserPosts(address: string, limit?: number, offset?: string | number): Promise<Post[]> {
-    return this.services.posts.getUserPosts(address, limit, offset);
+    return this.db.getUserPosts(address, limit, offset);
   }
 
   async getGroupPosts(groupId: string, limit?: number, offset?: string | number): Promise<Post[]> {
@@ -306,11 +296,11 @@ export class Zkitter extends GenericService {
   }
 
   async getThread(hash: string, limit?: number, offset?: string | number): Promise<Post[]> {
-    return this.services.posts.getReplies(hash, limit, offset);
+    return this.db.getReplies(hash, limit, offset);
   }
 
   async getPostMeta(hash: string): Promise<PostMeta> {
-    return this.services.posts.getPostMeta(hash);
+    return this.db.getPostMeta(hash);
   }
 
   async getMessagesByUser(address: string, limit?: number, offset?: number | string) {
@@ -318,7 +308,7 @@ export class Zkitter extends GenericService {
   }
 
   async getChatByECDH(ecdh: string): Promise<ChatMeta[]> {
-    return this.services.chats.getChatByECDH(ecdh);
+    return this.db.getChatByECDH(ecdh);
   }
 
   async getChatByUser(addressOrIdCommitment: string): Promise<ChatMeta[]> {
@@ -339,7 +329,7 @@ export class Zkitter extends GenericService {
     offset?: number | string,
     identity?: Identity
   ): Promise<Chat[]> {
-    const chats = await this.services.chats.getChatMessages(chatId, limit, offset);
+    const chats = await this.db.getChatMessages(chatId, limit, offset);
     let sharedSecret = '';
 
     if (chats.length) {
@@ -374,40 +364,11 @@ export class Zkitter extends GenericService {
     return chats;
   }
 
-  private async insert(msg: Message, proof: Proof) {
+  private async insert(msg: ZkitterMessage, proof: Proof) {
     try {
-      switch (msg?.type) {
-        case MessageType.Post:
-          await this.services.posts.insert(msg as Post, proof);
-          this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
-          break;
-        case MessageType.Moderation:
-          await this.services.moderations.insert(msg as Moderation, proof);
-          this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
-          break;
-        case MessageType.Connection:
-          await this.services.connections.insert(msg as Connection, proof);
-          this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
-          break;
-        case MessageType.Profile:
-          await this.services.profile.insert(msg as Profile, proof);
-          this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
-          break;
-        case MessageType.Chat:
-          await this.services.chats.insert(msg as Chat, proof);
-          this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
-          break;
-        case MessageType.Revert:
-
-          this.emit(ZkitterEvents.MessageReverted, msg, proof);
-          break;
-      }
+      await this.services.data.insertMessage(msg, proof);
     } catch (e) {
-      if (e === AlreadyExistError) {
-        this.emit(ZkitterEvents.AlreadyExist, msg);
-      } else if (process.env.NODE_ENV === 'development') {
-        console.error(e);
-      }
+      console.error(e);
     }
   }
 

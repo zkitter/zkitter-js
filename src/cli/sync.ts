@@ -1,8 +1,8 @@
 import { Command } from 'commander';
-import { ZkitterEvents } from '../services';
 import { UserServiceEvents } from '../services/users';
 import { initZkitter } from '../utils/cli';
 import { debug, success } from '../utils/logger';
+import {ZkitterEvents} from "../utils/events";
 
 export function sync(program: Command) {
   program

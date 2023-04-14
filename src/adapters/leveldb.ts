@@ -95,6 +95,10 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     });
   }
 
+  get lastSyncDB() {
+    return this.db.sublevel<string, number>('lastSync', { valueEncoding: 'json' });
+  }
+
   proofDB<proofType>() {
     return this.db.sublevel<string, proofType>('proofs', {
       valueEncoding: 'json',
@@ -262,6 +266,18 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return 2193241;
   }
 
+  async setLastSync(
+    id: string,
+    type: 'address' | 'group' | 'ecdh' | 'thread',
+    time?: Date
+  ): Promise<void> {
+    return this.lastSyncDB.put(type + '_' + id, time?.getTime() || Date.now());
+  }
+
+  async getLastSync(id: string, type: 'address' | 'group' | 'ecdh' | 'thread'): Promise<number> {
+    return this.lastSyncDB.get(type + '_' + id).catch(() => 0);
+  }
+
   async getProof(hash: string): Promise<Proof | null> {
     return this.proofDB<Proof>()
       .get(hash)
@@ -424,103 +440,6 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return member;
   }
 
-  async insertProfile(profile: Profile, proof: Proof): Promise<Profile | null> {
-    const json = profile.toJSON();
-    const existing = await this.messageDB()
-      .get(json.hash)
-      .catch(() => null);
-
-    if (existing) {
-      throw AlreadyExistError;
-    }
-
-    const creatorMeta = await this.userMetaDB.get(profile.creator).catch(() => EmptyUserMeta());
-    const operations: BatchOperation<any, any, any>[] = [
-      {
-        key: json.hash,
-        sublevel: this.messageDB(),
-        type: 'put',
-        // @ts-ignore
-        value: json,
-      },
-      {
-        key: json.hash,
-        sublevel: this.proofDB(),
-        type: 'put',
-        // @ts-ignore
-        value: proof,
-      },
-      {
-        key: charwise.encode(profile.createdAt.getTime()),
-        sublevel: this.userMessageDB(profile.creator),
-        type: 'put',
-        // @ts-ignore
-        value: json.hash,
-      },
-    ];
-
-    const checkAndReplace = async (key: UserMetaKey) => {
-      const hash = creatorMeta[key];
-      const msg = await this.messageDB<ProfileJSON>()
-        .get(hash)
-        .catch(() => null);
-      if (!msg || msg.createdAt < profile.createdAt.getTime()) {
-        creatorMeta[key] = profile.hash();
-      }
-    };
-
-    switch (profile.subtype) {
-      case ProfileMessageSubType.Bio:
-        await checkAndReplace('bio');
-        break;
-      case ProfileMessageSubType.CoverImage:
-        await checkAndReplace('coverImage');
-        break;
-      case ProfileMessageSubType.ProfileImage:
-        await checkAndReplace('profileImage');
-        break;
-      case ProfileMessageSubType.Group:
-        await checkAndReplace('group');
-        break;
-      case ProfileMessageSubType.Name:
-        await checkAndReplace('nickname');
-        break;
-      case ProfileMessageSubType.TwitterVerification:
-        await checkAndReplace('twitterVerification');
-        break;
-      case ProfileMessageSubType.Website:
-        await checkAndReplace('website');
-        break;
-      case ProfileMessageSubType.Custom:
-        if (profile.payload.key === 'id_commitment') {
-          await checkAndReplace('idCommitment');
-        } else if (profile.payload.key === 'ecdh_pubkey') {
-          await checkAndReplace('ecdh');
-          operations.push({
-            key: profile.payload.value,
-            sublevel: this.userECDHDB,
-            type: 'put',
-            value: profile.creator,
-          });
-        }
-        break;
-    }
-
-    operations.push({
-      key: profile.creator,
-      sublevel: this.userMetaDB,
-      type: 'put',
-      // @ts-ignore,
-      value: {
-        ...creatorMeta,
-      },
-    });
-
-    await this.db.batch(operations);
-
-    return profile;
-  }
-
   async updateProfile(profile: Profile, key: UserMetaKey): Promise<void> {
     if (!profile.creator) throw new Error('profile does not have a creator');
 
@@ -550,261 +469,8 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     }
   }
 
-  async insertConnection(conn: Connection, proof: Proof): Promise<Connection | null> {
-    const json = conn.toJSON();
-    const existing = await this.messageDB()
-      .get(json.hash)
-      .catch(() => null);
-
-    if (!conn.payload.name) return null;
-
-    if (existing) {
-      throw AlreadyExistError;
-    }
-
-    const userMeta = await this.userMetaDB.get(conn.payload.name).catch(() => EmptyUserMeta());
-    const creatorMeta = await this.userMetaDB.get(conn.creator).catch(() => EmptyUserMeta());
-    const encodedKey = this.encodeMessageSortKey(conn);
-
-    const operations: BatchOperation<any, any, any>[] = [
-      {
-        key: json.hash,
-        sublevel: this.messageDB(),
-        type: 'put',
-        // @ts-ignore
-        value: json,
-      },
-      {
-        key: json.hash,
-        sublevel: this.proofDB(),
-        type: 'put',
-        // @ts-ignore
-        value: proof,
-      },
-      {
-        key: charwise.encode(conn.createdAt.getTime()),
-        sublevel: this.userMessageDB(conn.creator),
-        type: 'put',
-        // @ts-ignore
-        value: json.hash,
-      },
-      {
-        key: encodedKey,
-        sublevel: this.connectionsDB(conn.payload.name),
-        type: 'put',
-        // @ts-ignore
-        value: json.hash,
-      },
-    ];
-
-    switch (conn.subtype) {
-      case ConnectionMessageSubType.Follow:
-        userMeta.followers = userMeta.followers + 1;
-        creatorMeta.following = creatorMeta.following + 1;
-        break;
-      case ConnectionMessageSubType.Block:
-        userMeta.blockers = userMeta.blockers + 1;
-        creatorMeta.blocking = creatorMeta.blocking + 1;
-        break;
-    }
-
-    operations.push({
-      key: conn.payload.name,
-      sublevel: this.userMetaDB,
-      type: 'put',
-      // @ts-ignore,
-      value: {
-        ...EmptyUserMeta(),
-        ...userMeta,
-      },
-    });
-
-    operations.push({
-      key: conn.creator,
-      sublevel: this.userMetaDB,
-      type: 'put',
-      // @ts-ignore,
-      value: {
-        ...EmptyUserMeta(),
-        ...creatorMeta,
-      },
-    });
-
-    await this.db.batch(operations);
-
-    return conn;
-  }
-
-  async insertModeration(mod: Moderation, proof: Proof): Promise<Moderation | null> {
-    const json = mod.toJSON();
-    const existing = await this.messageDB()
-      .get(json.hash)
-      .catch(() => null);
-
-    if (!mod.payload.reference) return null;
-
-    if (existing) {
-      throw AlreadyExistError;
-    }
-
-    const { creator, hash } = parseMessageId(mod.payload.reference);
-    const postMeta = await this.getPostMeta(hash);
-    const isOP = mod.creator === creator;
-
-    const encodedKey = this.encodeMessageSortKey(mod);
-
-    const operations: BatchOperation<any, any, any>[] = [
-      {
-        key: json.hash,
-        sublevel: this.messageDB(),
-        type: 'put',
-        // @ts-ignore
-        value: json,
-      },
-      {
-        key: json.hash,
-        sublevel: this.proofDB(),
-        type: 'put',
-        // @ts-ignore
-        value: proof,
-      },
-      {
-        key: charwise.encode(mod.createdAt.getTime()),
-        sublevel: this.userMessageDB(mod.creator),
-        type: 'put',
-        // @ts-ignore
-        value: json.hash,
-      },
-      {
-        key: encodedKey,
-        sublevel: this.moderationsDB(hash),
-        type: 'put',
-        // @ts-ignore,
-        value: json.hash,
-      },
-    ];
-
-    switch (mod.subtype) {
-      case ModerationMessageSubType.Like:
-        postMeta.like = postMeta.like + 1;
-        break;
-      case ModerationMessageSubType.Block:
-        postMeta.block = postMeta.block + 1;
-        break;
-      case ModerationMessageSubType.Global:
-        if (isOP) postMeta.global = true;
-        break;
-      case ModerationMessageSubType.ThreadBlock:
-      case ModerationMessageSubType.ThreadFollow:
-      case ModerationMessageSubType.ThreadMention:
-        if (isOP) postMeta.moderation = mod.subtype;
-        break;
-    }
-
-    operations.push({
-      key: hash,
-      sublevel: this.postMetaDB,
-      type: 'put',
-      // @ts-ignore,
-      value: {
-        ...EmptyPostMeta(),
-        ...postMeta,
-      },
-    });
-
-    await this.db.batch(operations);
-
-    return mod;
-  }
-
-  async insertChat(chat: Chat, proof: Proof): Promise<Chat> {
-    const json = chat.toJSON();
-    const existing = await this.messageDB()
-      .get(json.hash)
-      .catch(() => null);
-
-    if (existing) {
-      throw AlreadyExistError;
-    }
-
-    const { receiverECDH, senderECDH, senderSeed } = chat.payload;
-
-    const chatId = await deriveChatId(chat.payload.receiverECDH, chat.payload.senderECDH);
-
-    const senderMeta = await this.chatMetaDB(chat.payload.senderECDH)
-      .get(chatId)
-      .catch(() => null);
-    const receiverMeta = await this.chatMetaDB(chat.payload.receiverECDH)
-      .get(chatId)
-      .catch(() => null);
-
-    const operations: BatchOperation<any, any, any>[] = [
-      {
-        key: json.hash,
-        sublevel: this.messageDB(),
-        type: 'put',
-        value: json,
-      },
-      {
-        key: json.hash,
-        sublevel: this.proofDB(),
-        type: 'put',
-        value: proof,
-      },
-      {
-        key: charwise.encode(chat.createdAt.getTime()),
-        sublevel: this.chatDB(chatId),
-        type: 'put',
-        value: json.hash,
-      },
-    ];
-
-    if (chat.creator) {
-      operations.push({
-        key: senderECDH,
-        sublevel: this.savedChatECDHDB(chat.creator),
-        type: 'put',
-        value: senderECDH,
-      });
-    }
-
-    if (!senderMeta) {
-      operations.push({
-        key: chatId,
-        sublevel: this.chatMetaDB(chat.payload.senderECDH),
-        type: 'put',
-        value: {
-          chatId,
-          receiverECDH,
-          senderECDH,
-          senderSeed,
-          type: chat.subtype,
-        },
-      });
-    }
-
-    if (!receiverMeta) {
-      operations.push({
-        key: chatId,
-        sublevel: this.chatMetaDB(chat.payload.receiverECDH),
-        type: 'put',
-        value: {
-          chatId,
-          receiverECDH,
-          senderECDH,
-          senderSeed,
-          type: chat.subtype,
-        },
-      });
-    }
-
-    await this.db.batch(operations);
-
-    return chat;
-  }
-
   async addChatMessage(chat: Chat): Promise<void> {
-    const { receiverECDH, senderECDH, senderSeed} = chat.payload;
+    const { receiverECDH, senderECDH, senderSeed } = chat.payload;
 
     const chatId = await deriveChatId(receiverECDH, senderECDH);
 
@@ -822,7 +488,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   async addDirectChatMeta(chat: Chat): Promise<void> {
-    const { receiverECDH, senderECDH, senderSeed} = chat.payload;
+    const { receiverECDH, senderECDH, senderSeed } = chat.payload;
 
     const chatId = await deriveChatId(receiverECDH, senderECDH);
     const senderMeta = await this.chatMetaDB(chat.payload.senderECDH)
@@ -856,16 +522,16 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     }
   }
 
-  async addMessage(msg: AnyMessage): Promise<void> {
+  async addMessage(msg: Message): Promise<void> {
     const json = msg.toJSON();
     return this.messageDB().put(json.hash, json);
   }
 
-  async addProof(msg: AnyMessage, proof: Proof): Promise<void> {
+  async addProof(msg: Message, proof: Proof): Promise<void> {
     return this.proofDB().put(msg.hash(), proof);
   }
 
-  async addUserMessage(msg: AnyMessage): Promise<void> {
+  async addUserMessage(msg: Message): Promise<void> {
     if (!msg.creator) throw new Error('message has no creator');
 
     return this.userMessageDB(msg.creator).put(
@@ -956,136 +622,6 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       conn.creator ? conn.subtype + '_' + conn.creator : conn.hash(),
       conn.hash()
     );
-  }
-
-  async insertPost(post: Post, proof: Proof): Promise<Post> {
-    const json = post.toJSON();
-    const existing = await this.messageDB()
-      .get(json.hash)
-      .catch(() => null);
-
-    if (existing) {
-      throw AlreadyExistError;
-    }
-
-    const creatorMeta = await this.userMetaDB.get(post.creator).catch(() => EmptyUserMeta());
-    const postMeta = await this.getPostMeta(json.hash);
-    let postMetaDirty = false;
-    const encodedKey = this.encodeMessageSortKey(post);
-
-    const operations: BatchOperation<any, any, any>[] = [
-      {
-        key: json.hash,
-        sublevel: this.messageDB(),
-        type: 'put',
-        value: json,
-      },
-      {
-        key: json.hash,
-        sublevel: this.proofDB(),
-        type: 'put',
-        value: proof,
-      },
-      {
-        key: charwise.encode(post.createdAt.getTime()),
-        sublevel: this.userMessageDB(post.creator),
-        type: 'put',
-        value: json.hash,
-      },
-    ];
-
-    if (proof.type === ProofType.rln) {
-      const groupId = await this.findGroupHash(
-        proof.proof.publicSignals.merkleRoot as string,
-        proof.groupId
-      );
-      postMetaDirty = true;
-      postMeta.groupId = groupId || '';
-      operations.push({
-        key: encodedKey,
-        sublevel: this.groupPostsDB(groupId || ''),
-        type: 'put',
-        // @ts-ignore
-        value: json.hash,
-      });
-    } else if (proof.type === '' && proof.group) {
-      postMetaDirty = true;
-      postMeta.groupId = proof.group;
-    }
-
-    if (!post.payload.reference) {
-      operations.push({
-        key: encodedKey,
-        sublevel: this.postlistDB,
-        type: 'put',
-        value: json.hash,
-      });
-      operations.push({
-        key: charwise.encode(post.createdAt.getTime()),
-        sublevel: this.userPostsDB(post.creator),
-        type: 'put',
-        value: json.hash,
-      });
-      creatorMeta.posts = creatorMeta.posts + 1;
-      operations.push({
-        key: post.creator,
-        sublevel: this.userMetaDB,
-        type: 'put',
-        value: {
-          ...EmptyUserMeta(),
-          ...creatorMeta,
-        },
-      });
-    } else if (
-      post.subtype === PostMessageSubType.Reply ||
-      post.subtype === PostMessageSubType.MirrorReply
-    ) {
-      const { hash } = parseMessageId(post.payload.reference);
-      postMeta.reply = postMeta.reply + 1;
-      postMetaDirty = true;
-      operations.push({
-        key: encodedKey,
-        sublevel: this.threadDB(hash),
-        type: 'put',
-        value: json.hash,
-      });
-    } else if (post.subtype === PostMessageSubType.Repost) {
-      const { hash } = parseMessageId(post.payload.reference);
-      postMetaDirty = true;
-      postMeta.repost = postMeta.repost + 1;
-
-      operations.push({
-        key: encodedKey,
-        sublevel: this.postlistDB,
-        type: 'put',
-        value: json.hash,
-      });
-      operations.push({
-        key: charwise.encode(post.createdAt.getTime()),
-        sublevel: this.userPostsDB(post.creator),
-        type: 'put',
-        value: json.hash,
-      });
-      operations.push({
-        key: encodedKey,
-        sublevel: this.repostDB(hash),
-        type: 'put',
-        value: json.hash,
-      });
-    }
-
-    if (postMetaDirty) {
-      operations.push({
-        key: json.hash,
-        sublevel: this.postMetaDB,
-        type: 'put',
-        value: postMeta,
-      });
-    }
-
-    await this.db.batch(operations);
-
-    return post;
   }
 
   async revert(rvt: Revert, proof: Proof): Promise<void> {

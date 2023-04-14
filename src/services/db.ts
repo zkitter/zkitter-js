@@ -1,30 +1,42 @@
-import {GenericService} from "../utils/svc";
-import {ConstructorOptions} from "eventemitter2";
-import {GenericDBAdapterInterface} from "../adapters/db";
+import { GenericService } from '../utils/svc';
+import { ConstructorOptions } from 'eventemitter2';
+import { GenericDBAdapterInterface } from '../adapters/db';
 import {
-  AnyMessage, Chat, ChatMessageSubType, Connection, ConnectionMessageSubType,
+  Chat,
+  ChatMessageSubType,
+  Connection,
+  ConnectionMessageSubType,
+  Message,
   MessageType,
   Moderation,
   ModerationMessageSubType,
   Post,
-  PostMessageSubType, Profile, ProfileMessageSubType
-} from "../utils/message";
-import {Proof} from "../models/proof";
+  PostMessageSubType,
+  Profile,
+  ProfileMessageSubType,
+} from '../utils/message';
+import { Proof } from '../models/proof';
+import { ZkitterEvents } from '../utils/events';
 
-export class DBService extends GenericService {
+export class DataService extends GenericService {
   db: GenericDBAdapterInterface;
 
-  constructor(props: ConstructorOptions & {
-    db: GenericDBAdapterInterface;
-  }) {
+  constructor(
+    props: ConstructorOptions & {
+      db: GenericDBAdapterInterface;
+    }
+  ) {
     super(props);
     this.db = props.db;
   }
 
-  async insertMessage(msg: AnyMessage, proof: Proof): Promise<void> {
+  async insertMessage(msg: Message, proof: Proof): Promise<void> {
     const existing = await this.db.getMessage(msg.hash());
 
-    if (existing) return;
+    if (existing) {
+      this.emit(ZkitterEvents.AlreadyExist, msg);
+      return;
+    }
 
     await this.db.addMessage(msg);
     await this.db.addProof(msg, proof);
@@ -33,18 +45,25 @@ export class DBService extends GenericService {
 
     switch (msg.type) {
       case MessageType.Post:
-        return this.insertPost(msg as Post, proof);
+        await this.insertPost(msg as Post, proof);
+        break;
       case MessageType.Moderation:
-        return this.insertModeration(msg as Moderation, proof);
+        await this.insertModeration(msg as Moderation, proof);
+        break;
       case MessageType.Connection:
-        return this.insertConnection(msg as Connection, proof);
+        await this.insertConnection(msg as Connection, proof);
+        break;
       case MessageType.Profile:
-        return this.insertProfile(msg as Profile, proof);
+        await this.insertProfile(msg as Profile, proof);
+        break;
       case MessageType.Chat:
-        return this.insertChat(msg as Chat, proof);
+        await this.insertChat(msg as Chat, proof);
+        break;
       default:
         return;
     }
+
+    this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
   }
 
   async insertPost(post: Post, proof: Proof): Promise<void> {
@@ -114,31 +133,31 @@ export class DBService extends GenericService {
   async insertProfile(profile: Profile, proof: Proof): Promise<void> {
     switch (profile.subtype) {
       case ProfileMessageSubType.Bio:
-        await this.db.updateProfile(profile,'bio');
+        await this.db.updateProfile(profile, 'bio');
         break;
       case ProfileMessageSubType.CoverImage:
-        await this.db.updateProfile(profile,'coverImage');
+        await this.db.updateProfile(profile, 'coverImage');
         break;
       case ProfileMessageSubType.ProfileImage:
-        await this.db.updateProfile(profile,'profileImage');
+        await this.db.updateProfile(profile, 'profileImage');
         break;
       case ProfileMessageSubType.Group:
-        await this.db.updateProfile(profile,'group');
+        await this.db.updateProfile(profile, 'group');
         break;
       case ProfileMessageSubType.Name:
-        await this.db.updateProfile(profile,'nickname');
+        await this.db.updateProfile(profile, 'nickname');
         break;
       case ProfileMessageSubType.TwitterVerification:
-        await this.db.updateProfile(profile,'twitterVerification');
+        await this.db.updateProfile(profile, 'twitterVerification');
         break;
       case ProfileMessageSubType.Website:
-        await this.db.updateProfile(profile,'website');
+        await this.db.updateProfile(profile, 'website');
         break;
       case ProfileMessageSubType.Custom:
         if (profile.payload.key === 'id_commitment') {
-          await this.db.updateProfile(profile,'idCommitment');
+          await this.db.updateProfile(profile, 'idCommitment');
         } else if (profile.payload.key === 'ecdh_pubkey') {
-          await this.db.updateProfile(profile,'ecdh');
+          await this.db.updateProfile(profile, 'ecdh');
           await this.db.updateUserECDH(profile);
         }
         break;

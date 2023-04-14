@@ -3,7 +3,7 @@ import { GroupMember } from '../models/group';
 import { PostMeta } from '../models/postmeta';
 import { Proof } from '../models/proof';
 import { User } from '../models/user';
-import {UserMeta, UserMetaKey} from '../models/usermeta';
+import { UserMeta, UserMetaKey } from '../models/usermeta';
 import { Filter } from '../utils/filters';
 import { AnyMessage, Chat, Connection, Message, Moderation, Post, Profile } from '../utils/message';
 
@@ -22,11 +22,6 @@ export interface GenericDBAdapterInterface {
   insertGroupMember: (groupId: string, member: GroupMember) => Promise<GroupMember | null>;
   getGroupMembers: (groupId: string, limit?: number, offset?: number | string) => Promise<string[]>;
   findGroupHash: (hash: string, groupId?: string) => Promise<string | null>;
-  insertPost: (post: Post, proof: Proof) => Promise<Post>;
-  insertChat: (chat: Chat, proof: Proof) => Promise<Chat>;
-  insertModeration: (moderation: Moderation, proof: Proof) => Promise<Moderation | null>;
-  insertConnection: (connection: Connection, proof: Proof) => Promise<Connection | null>;
-  insertProfile: (profile: Profile, proof: Proof) => Promise<Profile | null>;
   saveChatECDH: (addressOrIdCommitment: string, ecdh: string) => Promise<string>;
   getMessagesByUser: (
     address: string,
@@ -53,9 +48,9 @@ export interface GenericDBAdapterInterface {
   getChatByECDH: (ecdh: string) => Promise<ChatMeta[]>;
   getChatMeta: (ecdh: string, chatId: string) => Promise<ChatMeta | null>;
   getChatMessages: (chatId: string, limit?: number, offset?: number | string) => Promise<Chat[]>;
-  addMessage: (msg: AnyMessage) => Promise<void>;
-  addProof: (msg: AnyMessage, proof: Proof) => Promise<void>;
-  addUserMessage: (msg: AnyMessage) => Promise<void>;
+  addMessage: (msg: Message) => Promise<void>;
+  addProof: (msg: Message, proof: Proof) => Promise<void>;
+  addUserMessage: (msg: Message) => Promise<void>;
   addToPostlist: (post: Post) => Promise<void>;
   addToUserPosts: (post: Post) => Promise<void>;
   addToGroupPosts: (post: Post, proof: Proof) => Promise<void>;
@@ -83,4 +78,10 @@ export interface GenericDBAdapterInterface {
   updateUserECDH(profile: Profile): Promise<void>;
   addChatMessage(chat: Chat): Promise<void>;
   addDirectChatMeta(chat: Chat): Promise<void>;
+  setLastSync(
+    id: string,
+    type: 'address' | 'group' | 'ecdh' | 'thread',
+    time?: Date
+  ): Promise<void>;
+  getLastSync(id: string, type: 'address' | 'group' | 'ecdh' | 'thread'): Promise<number>;
 }

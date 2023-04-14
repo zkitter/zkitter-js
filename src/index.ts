@@ -31,6 +31,8 @@ export {
 
 export * as Utils from './utils/encoding';
 
+export type {ZkitterEvents} from './utils/events';
+
 export { Filter, type FilterOptions } from './utils/filters';
 export {
   generateECDHKeyPairFromHex,

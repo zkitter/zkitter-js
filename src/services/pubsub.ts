@@ -7,7 +7,7 @@ import { Message } from '../models/message';
 import { Proof, ProofType } from '../models/proof';
 import { sha256, signWithP256, verifySignatureP256 } from '../utils/crypto';
 import { Filter } from '../utils/filters';
-import { generateECDHKeyPairFromZKIdentity, generateZKIdentityWithP256 } from '../utils/identity';
+import { generateECDHKeyPairFromZKIdentity } from '../utils/identity';
 import {
   Chat,
   ChatMessageSubType,
@@ -30,19 +30,20 @@ import { GenericService } from '../utils/svc';
 import { createRLNProof, verifyRLNProof } from '../utils/zk';
 import { GroupService } from './groups';
 import { UserService } from './users';
+import { DataService } from './db';
+import { GenericDBAdapterInterface } from '../adapters/db';
 
 export class PubsubService extends GenericService {
   waku: LightNode;
-
   users: UserService;
-
   groups: GroupService;
-
+  db: GenericDBAdapterInterface;
   topicPrefix?: string;
 
   static async initialize(
     users: UserService,
     groups: GroupService,
+    db: GenericDBAdapterInterface,
     lazy?: boolean,
     topicPrefix?: string
   ) {
@@ -51,7 +52,7 @@ export class PubsubService extends GenericService {
       await waku.start();
       await waitForRemotePeer(waku, [Protocols.Store, Protocols.Filter, Protocols.LightPush]);
     }
-    return new PubsubService({ groups, topicPrefix, users, waku });
+    return new PubsubService({ groups, topicPrefix, users, waku, db });
   }
 
   constructor(
@@ -59,6 +60,7 @@ export class PubsubService extends GenericService {
       waku: LightNode;
       users: UserService;
       groups: GroupService;
+      db: GenericDBAdapterInterface;
       topicPrefix?: string;
     }
   ) {
@@ -66,6 +68,7 @@ export class PubsubService extends GenericService {
     this.waku = opts.waku;
     this.users = opts.users;
     this.groups = opts.groups;
+    this.db = opts.db;
     this.topicPrefix = opts.topicPrefix;
   }
 
@@ -260,7 +263,7 @@ export class PubsubService extends GenericService {
   }
 
   async publish(message: ZkitterMessage, proof: Proof, force = false) {
-    if (force || await this.validateMessage(message, proof)) {
+    if (force || (await this.validateMessage(message, proof))) {
       const payload = await this.covertMessaegToWakuPayload(message, proof);
 
       if (message.type === MessageType.Chat && message.subtype === ChatMessageSubType.Direct) {
@@ -328,8 +331,12 @@ export class PubsubService extends GenericService {
 
   async queryUser(address: string, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
     const decoder = createDecoder(userMessageTopic(address, this.topicPrefix));
+    const lastSync = await this.db.getLastSync(address, 'address');
+    const now = new Date();
 
-    for await (const messagesPromises of this.waku.store.queryGenerator([decoder])) {
+    for await (const messagesPromises of this.waku.store.queryGenerator([decoder], {
+      timeFilter: { startTime: new Date(lastSync), endTime: now },
+    })) {
       const wakuMessages = await Promise.all(messagesPromises);
 
       for (const message of wakuMessages.filter(msg => !!msg)) {
@@ -343,18 +350,24 @@ export class PubsubService extends GenericService {
         }
       }
     }
+
+    await this.db.setLastSync(address, 'address', now);
   }
 
   async queryThread(hash: string, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
     const decoder = createDecoder(threadTopic(hash, this.topicPrefix));
 
-    for await (const messagesPromises of this.waku.store.queryGenerator([decoder])) {
+    const lastSync = await this.db.getLastSync(hash, 'thread');
+    const now = new Date();
+
+    for await (const messagesPromises of this.waku.store.queryGenerator([decoder], {
+      timeFilter: { startTime: new Date(lastSync), endTime: now },
+    })) {
       const wakuMessages = await Promise.all(messagesPromises);
 
       for (const message of wakuMessages.filter(msg => !!msg)) {
         if (message?.payload) {
           const decoded = Message.decode(message.payload);
-          1;
           const msg = ZkitterMessage.fromHex(decoded.data);
           const proof: Proof = JSON.parse(decoded.proof);
           if (msg && (await this.validateMessage(msg, proof))) {
@@ -363,18 +376,23 @@ export class PubsubService extends GenericService {
         }
       }
     }
+
+    await this.db.setLastSync(hash, 'thread', now);
   }
 
   async queryGroup(groupId: string, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
     const decoder = createDecoder(groupMessageTopic(groupId, this.topicPrefix));
+    const lastSync = await this.db.getLastSync(groupId, 'group');
+    const now = new Date();
 
-    for await (const messagesPromises of this.waku.store.queryGenerator([decoder])) {
+    for await (const messagesPromises of this.waku.store.queryGenerator([decoder], {
+      timeFilter: { startTime: new Date(lastSync), endTime: now },
+    })) {
       const wakuMessages = await Promise.all(messagesPromises);
 
       for (const message of wakuMessages.filter(msg => !!msg)) {
         if (message?.payload) {
           const decoded = Message.decode(message.payload);
-          1;
           const msg = ZkitterMessage.fromHex(decoded.data);
           const proof: Proof = JSON.parse(decoded.proof);
           if (msg && (await this.validateMessage(msg, proof))) {
@@ -383,6 +401,8 @@ export class PubsubService extends GenericService {
         }
       }
     }
+
+    await this.db.setLastSync(groupId, 'group');
   }
 
   async queryAll(cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
@@ -394,7 +414,6 @@ export class PubsubService extends GenericService {
       for (const message of wakuMessages.filter(msg => !!msg)) {
         if (message?.payload) {
           const decoded = Message.decode(message.payload);
-          1;
           const msg = ZkitterMessage.fromHex(decoded.data);
           const proof: Proof = JSON.parse(decoded.proof);
           if (msg && (await this.validateMessage(msg, proof))) {
@@ -405,13 +424,56 @@ export class PubsubService extends GenericService {
     }
   }
 
+  private async getLastSyncFromFilter(filter: Filter): Promise<number> {
+    let lastSync = 0;
+
+    const json = filter.json;
+
+    if (json.all) return lastSync;
+
+    for (const key of ['address', 'group', 'thread', 'ecdh']) {
+      const k = key as 'address' | 'group' | 'ecdh' | 'thread';
+      for (const id of json[k]) {
+        const last = await this.db.getLastSync(id, k);
+
+        console.log(last, id, k)
+        if (!lastSync) {
+          lastSync = last;
+        } else if (last < lastSync) {
+          lastSync = last;
+        }
+      }
+    }
+
+    return lastSync;
+  }
+
+
+  private async setLastSyncFromFilter(filter: Filter, date: Date): Promise<void> {
+    const json = filter.json;
+
+    if (json.all) return;
+
+    for (const key of ['address', 'group', 'thread', 'ecdh']) {
+      const k = key as 'address' | 'group' | 'ecdh' | 'thread';
+      for (const id of json[k]) {
+        await this.db.setLastSync(id, k, date);
+      }
+    }
+  }
+
   async query(filter: Filter, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {
     const topics = filter.topics;
     const decoders = topics.map(createDecoder);
 
     if (!decoders.length) return;
 
-    for await (const messagesPromises of this.waku.store.queryGenerator(decoders)) {
+    const lastSync = await this.getLastSyncFromFilter(filter);
+    const now = new Date();
+
+    for await (const messagesPromises of this.waku.store.queryGenerator(decoders, {
+      timeFilter: { startTime: new Date(lastSync), endTime: now },
+    })) {
       const wakuMessages = await Promise.all(messagesPromises);
 
       for (const message of wakuMessages.filter(msg => !!msg)) {
@@ -425,6 +487,8 @@ export class PubsubService extends GenericService {
         }
       }
     }
+
+    await this.setLastSyncFromFilter(filter, now);
   }
 
   async subscribe(filter: Filter, cb: (message: ZkitterMessage, proof: Proof) => Promise<void>) {

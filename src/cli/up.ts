@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import promptly from 'promptly';
-import { Zkitter, ZkitterEvents } from '../services';
+import { Zkitter } from '../services';
 import { UserServiceEvents } from '../services/users';
 import { initZkitter } from '../utils/cli';
 import { error, success } from '../utils/logger';
@@ -8,6 +8,7 @@ import { handleStatus } from './status';
 import { printPosts } from './timeline';
 import { handleWhois } from './whois';
 import { handleWrite } from './write';
+import {ZkitterEvents} from "../utils/events";
 
 export function up(program: Command) {
   program
