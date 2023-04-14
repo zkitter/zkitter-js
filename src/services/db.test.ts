@@ -102,14 +102,10 @@ tape('LevelDB Adapter', async t => {
     makeConnection('userA', ConnectionMessageSubType.Follow, 'userA'),
     mockUserProof()
   );
-  await db.insertMessage(
-    makeConnection('userA', ConnectionMessageSubType.Follow, 'userB'),
-    mockUserProof()
-  );
-  await db.insertMessage(
-    makeConnection('userA', ConnectionMessageSubType.Follow, 'userC'),
-    mockUserProof()
-  );
+  const userBFollowsUserA = makeConnection('userA', ConnectionMessageSubType.Follow, 'userB');
+  await db.insertMessage(userBFollowsUserA, mockUserProof());
+  const userCFollowsUserA = makeConnection('userA', ConnectionMessageSubType.Follow, 'userC');
+  await db.insertMessage(userCFollowsUserA, mockUserProof());
   await db.insertMessage(
     makeConnection('userA', ConnectionMessageSubType.Follow, 'userD'),
     mockUserProof()
@@ -122,22 +118,16 @@ tape('LevelDB Adapter', async t => {
     makeConnection('userA', ConnectionMessageSubType.Follow, 'userE'),
     mockUserProof()
   );
+  const userEBlocksUserA = makeConnection('userA', ConnectionMessageSubType.Block, 'userE');
+  await db.insertMessage(userEBlocksUserA, mockUserProof());
   await db.insertMessage(
     makeConnection('userA', ConnectionMessageSubType.Block, 'userE'),
     mockUserProof()
   );
-  await db.insertMessage(
-    makeConnection('userA', ConnectionMessageSubType.Block, 'userE'),
-    mockUserProof()
-  );
-  await db.insertMessage(
-    makeConnection('userA', ConnectionMessageSubType.MemberInvite, 'userE'),
-    mockUserProof()
-  );
-  await db.insertMessage(
-    makeConnection('userE', ConnectionMessageSubType.MemberAccept, 'userA'),
-    mockUserProof()
-  );
+  const userEInviteUserA = makeConnection('userA', ConnectionMessageSubType.MemberInvite, 'userE');
+  await db.insertMessage(userEInviteUserA, mockUserProof());
+  const userAAcceptsUserE = makeConnection('userE', ConnectionMessageSubType.MemberAccept, 'userA');
+  await db.insertMessage(userAAcceptsUserE, mockUserProof());
 
   // Initialize DB with profile messages
   await db.insertMessage(makeProfile('developer', ProfileMessageSubType.Name), mockUserProof());
@@ -538,31 +528,63 @@ tape('LevelDB Adapter', async t => {
 
   t.test('revert moderation', async test => {
     await db.insertMessage(makeRevert(userAModGlobal.toJSON().messageId, 'userZ'), mockUserProof());
-    await db.insertMessage(makeRevert(userBLikeMessageA.toJSON().messageId, 'userZ'), mockUserProof());
-    await db.insertMessage(makeRevert(userDBlockMessageA.toJSON().messageId, 'userZ'), mockUserProof());
+    await db.insertMessage(
+      makeRevert(userBLikeMessageA.toJSON().messageId, 'userZ'),
+      mockUserProof()
+    );
+    await db.insertMessage(
+      makeRevert(userDBlockMessageA.toJSON().messageId, 'userZ'),
+      mockUserProof()
+    );
     const oldPostMetaA = await ldb.getPostMeta(hashA);
 
+    test.equal(
+      (await ldb.getModerations(hashA)).length,
+      10,
+      'it should ignore revert from non-creator'
+    );
     test.equal(oldPostMetaA.global, true, 'it should ignore revert from non-creator');
     test.equal(oldPostMetaA.block, 1, 'it should ignore revert from non-creator');
     test.equal(oldPostMetaA.like, 4, 'it should ignore revert from non-creator');
 
-
     await db.insertMessage(makeRevert(userAModGlobal.toJSON().messageId, 'userA'), mockUserProof());
-    await db.insertMessage(makeRevert(userBLikeMessageA.toJSON().messageId, 'userB'), mockUserProof());
-    await db.insertMessage(makeRevert(userBLikeMessageA.toJSON().messageId, 'userB'), mockUserProof());
-    await db.insertMessage(makeRevert(userDBlockMessageA.toJSON().messageId, 'userD'), mockUserProof());
-    await db.insertMessage(makeRevert(userDBlockMessageA.toJSON().messageId, 'userD'), mockUserProof());
+    await db.insertMessage(
+      makeRevert(userBLikeMessageA.toJSON().messageId, 'userB'),
+      mockUserProof()
+    );
+    await db.insertMessage(
+      makeRevert(userBLikeMessageA.toJSON().messageId, 'userB'),
+      mockUserProof()
+    );
+    await db.insertMessage(
+      makeRevert(userDBlockMessageA.toJSON().messageId, 'userD'),
+      mockUserProof()
+    );
+    await db.insertMessage(
+      makeRevert(userDBlockMessageA.toJSON().messageId, 'userD'),
+      mockUserProof()
+    );
 
     const postMetaA = await ldb.getPostMeta(hashA);
     test.equal(postMetaA.global, false, 'it should set global to false');
     test.equal(postMetaA.block, 0, 'it should decrement block only once');
     test.equal(postMetaA.like, 3, 'it should decrement like only once');
+
+    test.equal(
+      (await ldb.getModerations(hashA)).length,
+      7,
+      'it should remove from moderations list'
+    );
     test.end();
   });
 
   t.test('revert post', async test => {
     await db.insertMessage(makeRevert(messageIdA, 'userB'), mockUserProof());
-    test.equal((await ldb.getUserMeta('userA')).posts, 1, 'it should ignore revert from non-creator');
+    test.equal(
+      (await ldb.getUserMeta('userA')).posts,
+      1,
+      'it should ignore revert from non-creator'
+    );
 
     await db.insertMessage(makeRevert(messageIdA), mockUserProof());
     await db.insertMessage(makeRevert(messageIdA), mockUserProof());
@@ -594,7 +616,43 @@ tape('LevelDB Adapter', async t => {
     test.end();
   });
 
+  t.test('revert connections', async test => {
+    await db.insertMessage(makeRevert(userBFollowsUserA.toJSON().messageId, 'userZ'), mockUserProof());
+    await db.insertMessage(makeRevert(userCFollowsUserA.toJSON().messageId, 'userZ'), mockUserProof());
+    await db.insertMessage(makeRevert(userEBlocksUserA.toJSON().messageId, 'userZ'), mockUserProof());
+    await db.insertMessage(makeRevert(userEInviteUserA.toJSON().messageId, 'userZ'), mockUserProof());
+    await db.insertMessage(makeRevert(userAAcceptsUserE.toJSON().messageId, 'userZ'), mockUserProof());
 
+    const userMetaA = await ldb.getUserMeta('userA');
+    const userMetaB = await ldb.getUserMeta('userB');
+    const userMetaE = await ldb.getUserMeta('userE');
+
+    test.equal(userMetaA.blockers, 1, 'it should ignore non-creator revert');
+    test.equal(userMetaA.followers, 5, 'it should ignore non-creator revert');
+    test.equal(userMetaB.following, 1, 'it should ignore non-creator revert');
+    test.equal(userMetaE.blocking, 1, 'it should ignore non-creator revert');
+    test.equal((await ldb.getConnections('userA')).filter(conn => conn.subtype === 'MEMBER_INVITE').length, 1, 'it should ignore non-creator revert');
+    test.equal((await ldb.getConnections('userE')).filter(conn => conn.subtype === 'MEMBER_ACCEPT').length, 1, 'it should ignore non-creator revert');
+
+    await db.insertMessage(makeRevert(userBFollowsUserA.toJSON().messageId, 'userB'), mockUserProof());
+    await db.insertMessage(makeRevert(userCFollowsUserA.toJSON().messageId, 'userC'), mockUserProof());
+    await db.insertMessage(makeRevert(userEBlocksUserA.toJSON().messageId, 'userE'), mockUserProof());
+    await db.insertMessage(makeRevert(userEInviteUserA.toJSON().messageId, 'userE'), mockUserProof());
+    await db.insertMessage(makeRevert(userAAcceptsUserE.toJSON().messageId, 'userA'), mockUserProof());
+
+    const newUserMetaA = await ldb.getUserMeta('userA');
+    const newUserMetaB = await ldb.getUserMeta('userB');
+    const newUserMetaE = await ldb.getUserMeta('userE');
+
+    test.equal(newUserMetaA.blockers, 0, 'it should decrement blockers');
+    test.equal(newUserMetaA.followers, 3, 'it should decrement followers');
+    test.equal(newUserMetaB.following, 0, 'it should decrement following');
+    test.equal(newUserMetaE.blocking, 0, 'it should decrement blocking');
+    test.equal((await ldb.getConnections('userA')).filter(conn => conn.subtype === 'MEMBER_INVITE').length, 0, 'it should remove connections');
+    test.equal((await ldb.getConnections('userE')).filter(conn => conn.subtype === 'MEMBER_ACCEPT').length, 0, 'it should remove connections');
+
+    test.end();
+  });
 
   t.teardown(async () => {
     await fs.promises.rm(dbPath, { recursive: true, force: true });

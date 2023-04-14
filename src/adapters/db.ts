@@ -66,11 +66,14 @@ export interface GenericDBAdapterInterface {
   decrementRepostCount: (post: Post) => Promise<void>;
   decrementLikeCount: (mod: Moderation) => Promise<void>;
   decrementBlockCount: (mod: Moderation) => Promise<void>;
+  decrementFollowerCount(conn: Connection): Promise<void>;
+  decrementBlockerCount(conn: Connection): Promise<void>;
   removeFromPostlist: (post: Post) => Promise<void>;
   removeFromUserPosts: (post: Post) => Promise<void>;
   removeFromThread: (post: Post) => Promise<void>;
   removeFromGroupPosts(post: Post, proof: Proof): Promise<void>;
   removeFromThreadModerations(mod: Moderation): Promise<void>;
+  removeFromConnections(conn: Connection): Promise<void>;
   addToThreadModerations(mod: Moderation): Promise<void>;
   updateThreadVisibility(mod: Moderation, isRevert?: boolean): Promise<void>;
   updateThreadModeration(mod: Moderation): Promise<void>;

@@ -636,6 +636,12 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     );
   }
 
+  async removeFromConnections(conn: Connection): Promise<void> {
+    return this.connectionsDB(conn.payload.name).del(
+      conn.creator ? conn.subtype + '_' + conn.creator : conn.hash()
+    );
+  }
+
   async incrementCreatorPostCount(post: Post): Promise<void> {
     if (!post.creator) throw new Error('post has no creator');
     const creatorMeta = await this.userMetaDB.get(post.creator).catch(() => EmptyUserMeta());
@@ -710,6 +716,39 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
       meta.blockers = meta.blockers + 1;
       creatorMeta.blocking = creatorMeta.blocking + 1;
+
+      await this.userMetaDB.put(conn.payload.name, meta);
+      await this.userMetaDB.put(conn.creator, creatorMeta);
+    }
+  }
+
+  async decrementFollowerCount(conn: Connection): Promise<void> {
+    const exist = await this.connectionsDB(conn.payload.name)
+      .get(conn.creator ? conn.subtype + '_' + conn.creator : conn.hash())
+      .catch(() => null);
+
+    if (exist) {
+      const meta = await this.getUserMeta(conn.payload.name);
+      meta.followers = Math.max(meta.followers - 1, 0);
+      await this.userMetaDB.put(conn.payload.name, meta);
+
+      const creatorMeta = await this.getUserMeta(conn.creator);
+      creatorMeta.following = Math.max(creatorMeta.following - 1, 0);
+      await this.userMetaDB.put(conn.creator, creatorMeta);
+    }
+  }
+
+  async decrementBlockerCount(conn: Connection): Promise<void> {
+    const exist = await this.connectionsDB(conn.payload.name)
+      .get(conn.creator ? conn.subtype + '_' + conn.creator : conn.hash())
+      .catch(() => null);
+
+    if (exist) {
+      const meta = await this.getUserMeta(conn.payload.name);
+      const creatorMeta = await this.getUserMeta(conn.creator);
+
+      meta.blockers = Math.max(meta.blockers - 1, 0);
+      creatorMeta.blocking = Math.max(creatorMeta.blocking - 1, 0);
 
       await this.userMetaDB.put(conn.payload.name, meta);
       await this.userMetaDB.put(conn.creator, creatorMeta);

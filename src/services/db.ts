@@ -91,6 +91,8 @@ export class DataService extends GenericService {
         await this.revertModeration(msg as Moderation, proof);
         break;
       case MessageType.Connection:
+        await this.revertConnection(msg as Connection, proof);
+        break;
       case MessageType.Profile:
       case MessageType.Chat:
         break;
@@ -212,6 +214,22 @@ export class DataService extends GenericService {
     }
 
     await this.db.addToConnections(conn);
+  }
+
+  async revertConnection(conn: Connection, proof: Proof): Promise<void> {
+    switch (conn.subtype) {
+      case ConnectionMessageSubType.Follow:
+        await this.db.decrementFollowerCount(conn);
+        break;
+      case ConnectionMessageSubType.Block:
+        await this.db.decrementBlockerCount(conn);
+        break;
+      case ConnectionMessageSubType.MemberInvite:
+      case ConnectionMessageSubType.MemberAccept:
+        break;
+    }
+
+    await this.db.removeFromConnections(conn);
   }
 
   async insertProfile(profile: Profile, proof: Proof): Promise<void> {
