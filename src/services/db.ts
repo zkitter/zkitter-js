@@ -1,6 +1,6 @@
-import { GenericService } from '../utils/svc';
-import { ConstructorOptions } from 'eventemitter2';
-import { GenericDBAdapterInterface } from '../adapters/db';
+import {GenericService} from '../utils/svc';
+import {ConstructorOptions} from 'eventemitter2';
+import {GenericDBAdapterInterface} from '../adapters/db';
 import {
   Chat,
   ChatMessageSubType,
@@ -9,14 +9,14 @@ import {
   Message,
   MessageType,
   Moderation,
-  ModerationMessageSubType,
+  ModerationMessageSubType, parseMessageId,
   Post,
   PostMessageSubType,
   Profile,
-  ProfileMessageSubType,
+  ProfileMessageSubType, Revert,
 } from '../utils/message';
-import { Proof } from '../models/proof';
-import { ZkitterEvents } from '../utils/events';
+import {Proof} from '../models/proof';
+import {ZkitterEvents} from '../utils/events';
 
 export class DataService extends GenericService {
   db: GenericDBAdapterInterface;
@@ -59,11 +59,36 @@ export class DataService extends GenericService {
       case MessageType.Chat:
         await this.insertChat(msg as Chat, proof);
         break;
+      case MessageType.Revert:
+        await this.revert(msg as Revert, proof);
+        return;
       default:
         return;
     }
 
     this.emit(ZkitterEvents.NewMessageCreated, msg, proof);
+  }
+
+  async revert(rvt: Revert, proof: Proof): Promise<void> {
+    const { creator, hash } = parseMessageId(rvt.payload.reference);
+    const msg = await this.db.getMessage(hash);
+
+    if (!msg) return;
+
+    if (!creator || creator !== msg.creator) return;
+
+    switch (msg.type) {
+      case MessageType.Post:
+        await this.revertPost(msg as Post, proof);
+        break;
+      case MessageType.Moderation:
+      case MessageType.Connection:
+      case MessageType.Profile:
+      case MessageType.Chat:
+        break;
+    }
+
+    this.emit(ZkitterEvents.MessageReverted, msg, proof);
   }
 
   async insertPost(post: Post, proof: Proof): Promise<void> {
@@ -89,6 +114,33 @@ export class DataService extends GenericService {
           await this.db.addToUserPosts(post);
         }
         await this.db.incrementRepostCount(post);
+        return;
+    }
+  }
+
+  async revertPost(post: Post, proof: Proof): Promise<void> {
+    switch (post.subtype) {
+      case PostMessageSubType.Default:
+      case PostMessageSubType.MirrorPost:
+        await this.db.removeFromPostlist(post);
+        if (post.creator) {
+          await this.db.removeFromUserPosts(post);
+          await this.db.decrementCreatorPostCount(post);
+        } else if (proof.type === 'rln') {
+          await this.db.removeFromGroupPosts(post, proof);
+        }
+        return;
+      case PostMessageSubType.Reply:
+      case PostMessageSubType.MirrorReply:
+        await this.db.removeFromThread(post);
+        await this.db.decrementReplyCount(post);
+        return;
+      case PostMessageSubType.Repost:
+        await this.db.removeFromPostlist(post);
+        if (post.creator) {
+          await this.db.removeFromUserPosts(post);
+        }
+        await this.db.decrementRepostCount(post);
         return;
     }
   }

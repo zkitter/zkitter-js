@@ -17,7 +17,7 @@ import {
   ModerationMessageSubType,
   parseMessageId,
   Post,
-  PostMessageSubType,
+  PostMessageSubType, Revert,
 } from '../utils/message';
 import {
   chatTopic,
@@ -85,7 +85,7 @@ export class PubsubService extends GenericService {
     const hash = message.hash();
 
     switch (message.type) {
-      case MessageType.Moderation:
+      case MessageType.Moderation: {
         const msg = message as Moderation;
         const { creator } = parseMessageId(msg.payload.reference);
         const isOP = msg.creator === creator;
@@ -101,6 +101,16 @@ export class PubsubService extends GenericService {
             return false;
           }
         }
+      }
+
+      case MessageType.Revert: {
+        const { creator, hash } = parseMessageId((message as Revert).payload.reference);
+        const msg = await this.db.getMessage(hash);
+
+        if (!msg || !creator || msg.creator !== creator) {
+          return false;
+        }
+      }
     }
 
     switch (proof.type) {

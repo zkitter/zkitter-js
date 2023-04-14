@@ -15,6 +15,7 @@ import {
   PostMessageSubType,
   Profile,
   ProfileMessageSubType,
+  Revert,
 } from '../utils/message';
 import { ProofType, RLNProof, SignatureProof } from '../models/proof';
 
@@ -35,9 +36,14 @@ tape('LevelDB Adapter', async t => {
   await db.insertMessage(opB, mockUserProof('b'));
 
   await db.insertMessage(makeReply(messageIdA, 'reply to earth 1', 'userC'), mockUserProof());
-  await db.insertMessage(makeReply(messageIdA, 'reply to earth 2', 'userB'), mockUserProof());
+
+  const replyFromUserB = makeReply(messageIdA, 'reply to earth 2', 'userB');
+  await db.insertMessage(replyFromUserB, mockUserProof());
+
   await db.insertMessage(makeReply(messageIdB, 'reply to moon 1', 'userA'), mockUserProof());
-  await db.insertMessage(makeRepost(messageIdB, 'userB'), mockUserProof());
+
+  const repostFromUserB = makeRepost(messageIdB, 'userB');
+  await db.insertMessage(repostFromUserB, mockUserProof());
 
   // Initialize DB with moderations
   await db.insertMessage(
@@ -532,7 +538,35 @@ tape('LevelDB Adapter', async t => {
       '9dc674 should read correct content'
     );
 
+    test.end();
+  });
 
+  t.test('revert message', async test => {
+    console.log(await ldb.getPostMeta(hashB));
+    console.log(await ldb.getReplies(hashA));
+    await db.insertMessage(makeRevert(messageIdA), mockUserProof());
+    await db.insertMessage(makeRevert(replyFromUserB.toJSON().messageId, 'userB'), mockUserProof());
+    await db.insertMessage(
+      makeRevert(repostFromUserB.toJSON().messageId, 'userB'),
+      mockUserProof()
+    );
+
+    test.equal((await ldb.getUserMeta('userA')).posts, 0, 'it should decrement post counts');
+    test.equal((await ldb.getUserPosts('userA')).length, 0, 'it should remove from user posts');
+    test.equal((await ldb.getPosts()).length, 1, 'it should remove from postlist');
+    test.equal(
+      (await ldb.getPosts())[0].payload.content,
+      'hello moon',
+      'it should remove the correct messages'
+    );
+
+    test.equal((await ldb.getPostMeta(hashB)).repost, 0, 'it should decrement repost counts');
+    test.equal((await ldb.getReplies(hashA)).length, 1, 'it should remove from thread');
+    test.equal(
+      (await ldb.getReplies(hashA))[0].payload.content,
+      'reply to earth 1',
+      'it should remove correct message from thread'
+    );
     test.end();
   });
 
@@ -586,6 +620,16 @@ function makeModeration(
   return new Moderation({
     type: MessageType.Moderation,
     subtype: subtype,
+    creator,
+    payload: {
+      reference,
+    },
+  });
+}
+
+function makeRevert(reference: string, creator = 'userA'): Revert {
+  return new Revert({
+    type: MessageType.Revert,
     creator,
     payload: {
       reference,

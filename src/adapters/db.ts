@@ -68,6 +68,7 @@ export interface GenericDBAdapterInterface {
   removeFromPostlist: (post: Post) => Promise<void>;
   removeFromUserPosts: (post: Post) => Promise<void>;
   removeFromThread: (post: Post) => Promise<void>;
+  removeFromGroupPosts(post: Post, proof: Proof): Promise<void>;
   addToThreadModerations: (mod: Moderation) => Promise<void>;
   updateThreadVisibility(mod: Moderation): Promise<void>;
   updateThreadModeration(mod: Moderation): Promise<void>;

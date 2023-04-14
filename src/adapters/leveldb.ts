@@ -811,6 +811,17 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return this.userPostsDB(post.creator).del(encodedKey);
   }
 
+  async removeFromGroupPosts(post: Post, proof: Proof): Promise<void> {
+    if (proof.type !== 'rln') throw new Error('post is not from a group');
+
+    const groupId = await this.findGroupHash(
+      proof.proof.publicSignals.merkleRoot as string,
+      proof.groupId
+    );
+
+    return this.groupPostsDB(groupId || '').del(charwise.encode(post.createdAt.getTime()));
+  }
+
   async removeFromThread(post: Post): Promise<void> {
     const encodedKey = this.encodeMessageSortKey(post);
     const { hash } = parseMessageId(post.payload.reference);

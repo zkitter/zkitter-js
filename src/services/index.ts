@@ -29,12 +29,7 @@ import {
   Profile,
 } from '../utils/message';
 import {GenericService} from '../utils/svc';
-import {ChatService} from './chats';
-import {ConnectionService} from './connections';
 import {GroupService} from './groups';
-import {ModerationService} from './moderations';
-import {PostService} from './posts';
-import {ProfileService} from './profile';
 import {PubsubService} from './pubsub';
 import {UserService} from './users';
 import {DataService} from "./db";
@@ -52,11 +47,6 @@ export class Zkitter extends GenericService {
   services: {
     users: UserService;
     pubsub: PubsubService;
-    posts: PostService;
-    chats: ChatService;
-    moderations: ModerationService;
-    connections: ConnectionService;
-    profile: ProfileService;
     groups: GroupService;
     data: DataService;
   };
@@ -79,11 +69,6 @@ export class Zkitter extends GenericService {
       arbitrumProvider: options?.arbitrumProvider || 'https://arb1.arbitrum.io/rpc',
       db,
     });
-    const posts = new PostService({ db });
-    const moderations = new ModerationService({ db });
-    const connections = new ConnectionService({ db });
-    const profile = new ProfileService({ db });
-    const chats = new ChatService({ db });
     const groups = new GroupService({ db });
     const data = new DataService({ db });
 
@@ -116,8 +101,6 @@ export class Zkitter extends GenericService {
     }
 
     return new Zkitter({
-      chats,
-      connections,
       db,
       filter: new Filter({
         ...options?.filterOptions,
@@ -125,9 +108,6 @@ export class Zkitter extends GenericService {
       }),
       groups,
       historyAPI: options?.historyAPI,
-      moderations,
-      posts,
-      profile,
       pubsub,
       users,
       data,
@@ -139,11 +119,6 @@ export class Zkitter extends GenericService {
       db: GenericDBAdapterInterface;
       users: UserService;
       pubsub: PubsubService;
-      posts: PostService;
-      moderations: ModerationService;
-      connections: ConnectionService;
-      profile: ProfileService;
-      chats: ChatService;
       groups: GroupService;
       data: DataService;
       historyAPI?: string;
@@ -157,13 +132,8 @@ export class Zkitter extends GenericService {
     this.historyAPI = opts.historyAPI || 'https://api.zkitter.com/v1/history';
 
     this.services = {
-      chats: opts.chats,
-      connections: opts.connections,
       groups: opts.groups,
       data: opts.data,
-      moderations: opts.moderations,
-      posts: opts.posts,
-      profile: opts.profile,
       pubsub: opts.pubsub,
       users: opts.users,
     };
