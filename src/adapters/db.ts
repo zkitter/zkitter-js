@@ -49,6 +49,7 @@ export interface GenericDBAdapterInterface {
   getChatMeta: (ecdh: string, chatId: string) => Promise<ChatMeta | null>;
   getChatMessages: (chatId: string, limit?: number, offset?: number | string) => Promise<Chat[]>;
   addMessage: (msg: Message) => Promise<void>;
+  revertMessage(msg: Message): Promise<void>;
   addProof: (msg: Message, proof: Proof) => Promise<void>;
   addUserMessage: (msg: Message) => Promise<void>;
   addToPostlist: (post: Post) => Promise<void>;
@@ -69,8 +70,9 @@ export interface GenericDBAdapterInterface {
   removeFromUserPosts: (post: Post) => Promise<void>;
   removeFromThread: (post: Post) => Promise<void>;
   removeFromGroupPosts(post: Post, proof: Proof): Promise<void>;
-  addToThreadModerations: (mod: Moderation) => Promise<void>;
-  updateThreadVisibility(mod: Moderation): Promise<void>;
+  removeFromThreadModerations(mod: Moderation): Promise<void>;
+  addToThreadModerations(mod: Moderation): Promise<void>;
+  updateThreadVisibility(mod: Moderation, isRevert?: boolean): Promise<void>;
   updateThreadModeration(mod: Moderation): Promise<void>;
   addToConnections(conn: Connection): Promise<void>;
   incrementFollowerCount(conn: Connection): Promise<void>;

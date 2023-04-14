@@ -261,6 +261,7 @@ export class Post extends Message {
 export enum ModerationMessageSubType {
   Like = 'LIKE',
   Block = 'BLOCK',
+  ThreadAll = 'THREAD_ALL',
   ThreadBlock = 'THREAD_HIDE_BLOCK',
   ThreadFollow = 'THREAD_SHOW_FOLLOW',
   ThreadMention = 'THREAD_ONLY_MENTION',
@@ -334,6 +335,8 @@ export class Moderation extends Message {
         return ModerationMessageSubType.Like;
       case 'BLOCK':
         return ModerationMessageSubType.Block;
+      case 'THREAD_ALL':
+        return ModerationMessageSubType.ThreadAll;
       case 'THREAD_HIDE_BLOCK':
         return ModerationMessageSubType.ThreadBlock;
       case 'THREAD_SHOW_FOLLOW':

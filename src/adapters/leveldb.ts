@@ -527,6 +527,10 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return this.messageDB().put(json.hash, json);
   }
 
+  async revertMessage(msg: Message): Promise<void> {
+    return this.messageDB().del(msg.hash());
+  }
+
   async addProof(msg: Message, proof: Proof): Promise<void> {
     return this.proofDB().put(msg.hash(), proof);
   }
@@ -587,7 +591,12 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     );
   }
 
-  async updateThreadVisibility(mod: Moderation): Promise<void> {
+  async removeFromThreadModerations(mod: Moderation): Promise<void> {
+    const { hash } = parseMessageId(mod.payload.reference);
+    return this.moderationsDB(hash).del(mod.creator ? mod.subtype + '_' + mod.creator : mod.hash());
+  }
+
+  async updateThreadVisibility(mod: Moderation, isRevert = false): Promise<void> {
     const { hash } = parseMessageId(mod.payload.reference);
     const op = await this.getPost(hash);
     const opMeta = await this.getPostMeta(hash);
@@ -595,7 +604,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     if (op?.creator === mod.creator) {
       switch (mod.subtype) {
         case ModerationMessageSubType.Global:
-          opMeta.global = true;
+          opMeta.global = !isRevert;
           return this.postMetaDB.put(hash, opMeta);
       }
     }
@@ -613,6 +622,9 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         case ModerationMessageSubType.ThreadMention:
           opMeta.moderation = mod.subtype;
           return this.postMetaDB.put(hash, opMeta);
+        case ModerationMessageSubType.ThreadAll:
+          opMeta.moderation = null;
+          return this.postMetaDB.put(hash, opMeta);
       }
     }
   }
@@ -622,68 +634,6 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       conn.creator ? conn.subtype + '_' + conn.creator : conn.hash(),
       conn.hash()
     );
-  }
-
-  async revert(rvt: Revert, proof: Proof): Promise<void> {
-    const json = rvt.toJSON();
-    const existing = await this.messageDB()
-      .get(json.hash)
-      .catch(() => null);
-
-    if (existing) {
-      throw AlreadyExistError;
-    }
-
-    const { creator, hash } = parseMessageId(rvt.payload.reference);
-
-    const msg = await this.messageDB<{ type: MessageType }>()
-      .get(hash)
-      .catch(() => null);
-
-    if (!msg) return;
-
-    const operations: BatchOperation<any, any, any>[] = [
-      {
-        key: json.hash,
-        sublevel: this.messageDB(),
-        type: 'put',
-        value: json,
-      },
-      {
-        key: json.hash,
-        sublevel: this.proofDB(),
-        type: 'put',
-        value: proof,
-      },
-      {
-        key: charwise.encode(rvt.createdAt.getTime()),
-        sublevel: this.userMessageDB(rvt.creator),
-        type: 'put',
-        value: json.hash,
-      },
-    ];
-
-    await this.db.batch(operations);
-
-    switch (msg?.type) {
-      case MessageType.Post:
-        const post = msg as Post;
-        if (!post.payload.reference) {
-          await Promise.all([
-            this.removeFromPostlist(post),
-            this.removeFromUserPosts(post),
-            this.decrementCreatorPostCount(post),
-          ]);
-        } else if (
-          post.subtype === PostMessageSubType.Reply ||
-          post.subtype === PostMessageSubType.MirrorReply
-        ) {
-          await Promise.all([this.removeFromThread(post), this.decrementReplyCount(post)]);
-        } else if (post.subtype === PostMessageSubType.Repost) {
-          await Promise.all([this.removeFromPostlist(post), this.removeFromUserPosts(post)]);
-        }
-        return;
-    }
   }
 
   async incrementCreatorPostCount(post: Post): Promise<void> {
@@ -769,7 +719,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   async decrementCreatorPostCount(post: Post): Promise<void> {
     if (!post.creator) throw new Error('post has no creator');
     const creatorMeta = await this.userMetaDB.get(post.creator).catch(() => EmptyUserMeta());
-    creatorMeta.posts = Math.max(creatorMeta.posts - 1);
+    creatorMeta.posts = Math.max(creatorMeta.posts - 1, 0);
     return this.userMetaDB.put(post.creator, creatorMeta);
   }
 

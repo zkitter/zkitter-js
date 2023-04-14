@@ -1,6 +1,6 @@
-import {GenericService} from '../utils/svc';
-import {ConstructorOptions} from 'eventemitter2';
-import {GenericDBAdapterInterface} from '../adapters/db';
+import { GenericService } from '../utils/svc';
+import { ConstructorOptions } from 'eventemitter2';
+import { GenericDBAdapterInterface } from '../adapters/db';
 import {
   Chat,
   ChatMessageSubType,
@@ -9,14 +9,16 @@ import {
   Message,
   MessageType,
   Moderation,
-  ModerationMessageSubType, parseMessageId,
+  ModerationMessageSubType,
+  parseMessageId,
   Post,
   PostMessageSubType,
   Profile,
-  ProfileMessageSubType, Revert,
+  ProfileMessageSubType,
+  Revert,
 } from '../utils/message';
-import {Proof} from '../models/proof';
-import {ZkitterEvents} from '../utils/events';
+import { Proof } from '../models/proof';
+import { ZkitterEvents } from '../utils/events';
 
 export class DataService extends GenericService {
   db: GenericDBAdapterInterface;
@@ -70,24 +72,31 @@ export class DataService extends GenericService {
   }
 
   async revert(rvt: Revert, proof: Proof): Promise<void> {
-    const { creator, hash } = parseMessageId(rvt.payload.reference);
+    const { hash } = parseMessageId(rvt.payload.reference);
     const msg = await this.db.getMessage(hash);
 
-    if (!msg) return;
+    if (!msg) {
+      return;
+    }
 
-    if (!creator || creator !== msg.creator) return;
+    if (!rvt.creator || rvt.creator !== msg.creator) {
+      return;
+    }
 
     switch (msg.type) {
       case MessageType.Post:
         await this.revertPost(msg as Post, proof);
         break;
       case MessageType.Moderation:
+        await this.revertModeration(msg as Moderation, proof);
+        break;
       case MessageType.Connection:
       case MessageType.Profile:
       case MessageType.Chat:
         break;
     }
 
+    await this.db.revertMessage(msg);
     this.emit(ZkitterEvents.MessageReverted, msg, proof);
   }
 
@@ -159,11 +168,34 @@ export class DataService extends GenericService {
       case ModerationMessageSubType.ThreadMention:
       case ModerationMessageSubType.ThreadFollow:
       case ModerationMessageSubType.ThreadBlock:
+      case ModerationMessageSubType.ThreadAll:
         await this.db.updateThreadModeration(mod);
         break;
     }
 
     await this.db.addToThreadModerations(mod);
+  }
+
+  async revertModeration(mod: Moderation, proof: Proof): Promise<void> {
+    switch (mod.subtype) {
+      case ModerationMessageSubType.Like:
+        await this.db.decrementLikeCount(mod);
+        break;
+      case ModerationMessageSubType.Block:
+        await this.db.decrementBlockCount(mod);
+        break;
+      case ModerationMessageSubType.Global:
+        await this.db.updateThreadVisibility(mod, true);
+        break;
+      case ModerationMessageSubType.ThreadMention:
+      case ModerationMessageSubType.ThreadFollow:
+      case ModerationMessageSubType.ThreadBlock:
+      case ModerationMessageSubType.ThreadAll:
+        // user should overwrite with new thread moderation subtype instead of reverting
+        break;
+    }
+
+    await this.db.removeFromThreadModerations(mod);
   }
 
   async insertConnection(conn: Connection, proof: Proof): Promise<void> {

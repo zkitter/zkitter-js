@@ -46,6 +46,8 @@ tape('LevelDB Adapter', async t => {
   await db.insertMessage(repostFromUserB, mockUserProof());
 
   // Initialize DB with moderations
+  const userAModGlobal = makeModeration(messageIdA, ModerationMessageSubType.Global, 'userA');
+
   await db.insertMessage(
     makeModeration(messageIdA, ModerationMessageSubType.Global, 'userB'),
     mockUserProof()
@@ -66,10 +68,8 @@ tape('LevelDB Adapter', async t => {
     makeModeration(messageIdA, ModerationMessageSubType.Like, 'userA'),
     mockUserProof()
   );
-  await db.insertMessage(
-    makeModeration(messageIdA, ModerationMessageSubType.Like, 'userB'),
-    mockUserProof()
-  );
+  const userBLikeMessageA = makeModeration(messageIdA, ModerationMessageSubType.Like, 'userB');
+  await db.insertMessage(userBLikeMessageA, mockUserProof());
   await db.insertMessage(
     makeModeration(messageIdA, ModerationMessageSubType.Like, 'userB'),
     mockUserProof()
@@ -86,10 +86,8 @@ tape('LevelDB Adapter', async t => {
     makeModeration(messageIdA, ModerationMessageSubType.Like, 'userD'),
     mockUserProof()
   );
-  await db.insertMessage(
-    makeModeration(messageIdA, ModerationMessageSubType.Block, 'userD'),
-    mockUserProof()
-  );
+  const userDBlockMessageA = makeModeration(messageIdA, ModerationMessageSubType.Block, 'userD');
+  await db.insertMessage(userDBlockMessageA, mockUserProof());
   await db.insertMessage(
     makeModeration(messageIdA, ModerationMessageSubType.Block, 'userD'),
     mockUserProof()
@@ -285,10 +283,7 @@ tape('LevelDB Adapter', async t => {
       'only creator can update moderation'
     );
 
-    await db.insertMessage(
-      makeModeration(messageIdA, ModerationMessageSubType.Global, 'userA'),
-      mockUserProof()
-    );
+    await db.insertMessage(userAModGlobal, mockUserProof());
     const adjMetaA = await ldb.getPostMeta(hashA);
     modTest.equal(adjMetaA.global, true, 'only creator can update global visibility');
 
@@ -541,9 +536,35 @@ tape('LevelDB Adapter', async t => {
     test.end();
   });
 
-  t.test('revert message', async test => {
-    console.log(await ldb.getPostMeta(hashB));
-    console.log(await ldb.getReplies(hashA));
+  t.test('revert moderation', async test => {
+    await db.insertMessage(makeRevert(userAModGlobal.toJSON().messageId, 'userZ'), mockUserProof());
+    await db.insertMessage(makeRevert(userBLikeMessageA.toJSON().messageId, 'userZ'), mockUserProof());
+    await db.insertMessage(makeRevert(userDBlockMessageA.toJSON().messageId, 'userZ'), mockUserProof());
+    const oldPostMetaA = await ldb.getPostMeta(hashA);
+
+    test.equal(oldPostMetaA.global, true, 'it should ignore revert from non-creator');
+    test.equal(oldPostMetaA.block, 1, 'it should ignore revert from non-creator');
+    test.equal(oldPostMetaA.like, 4, 'it should ignore revert from non-creator');
+
+
+    await db.insertMessage(makeRevert(userAModGlobal.toJSON().messageId, 'userA'), mockUserProof());
+    await db.insertMessage(makeRevert(userBLikeMessageA.toJSON().messageId, 'userB'), mockUserProof());
+    await db.insertMessage(makeRevert(userBLikeMessageA.toJSON().messageId, 'userB'), mockUserProof());
+    await db.insertMessage(makeRevert(userDBlockMessageA.toJSON().messageId, 'userD'), mockUserProof());
+    await db.insertMessage(makeRevert(userDBlockMessageA.toJSON().messageId, 'userD'), mockUserProof());
+
+    const postMetaA = await ldb.getPostMeta(hashA);
+    test.equal(postMetaA.global, false, 'it should set global to false');
+    test.equal(postMetaA.block, 0, 'it should decrement block only once');
+    test.equal(postMetaA.like, 3, 'it should decrement like only once');
+    test.end();
+  });
+
+  t.test('revert post', async test => {
+    await db.insertMessage(makeRevert(messageIdA, 'userB'), mockUserProof());
+    test.equal((await ldb.getUserMeta('userA')).posts, 1, 'it should ignore revert from non-creator');
+
+    await db.insertMessage(makeRevert(messageIdA), mockUserProof());
     await db.insertMessage(makeRevert(messageIdA), mockUserProof());
     await db.insertMessage(makeRevert(replyFromUserB.toJSON().messageId, 'userB'), mockUserProof());
     await db.insertMessage(
@@ -567,8 +588,13 @@ tape('LevelDB Adapter', async t => {
       'reply to earth 1',
       'it should remove correct message from thread'
     );
+
+    test.equal(await ldb.getPost(hashA), null, 'it should delete post');
+
     test.end();
   });
+
+
 
   t.teardown(async () => {
     await fs.promises.rm(dbPath, { recursive: true, force: true });
