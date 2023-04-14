@@ -446,7 +446,6 @@ export class PubsubService extends GenericService {
       for (const id of json[k]) {
         const last = await this.db.getLastSync(id, k);
 
-        console.log(last, id, k)
         if (!lastSync) {
           lastSync = last;
         } else if (last < lastSync) {
