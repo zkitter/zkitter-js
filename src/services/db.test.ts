@@ -4,6 +4,8 @@ import * as fs from 'fs';
 import { LevelDBAdapter } from '../adapters/leveldb';
 import { DBService } from './db';
 import {
+  Chat,
+  ChatMessageSubType,
   Connection,
   ConnectionMessageSubType,
   MessageType,
@@ -153,17 +155,48 @@ tape('LevelDB Adapter', async t => {
     makeProfile('website.url', ProfileMessageSubType.Website),
     mockUserProof()
   );
-  await db.insertMessage(makeProfile('', ProfileMessageSubType.Group), mockUserProof());
+  const groupMsg = makeProfile('', ProfileMessageSubType.Group);
+  await db.insertMessage(groupMsg, mockUserProof());
   await db.insertMessage(
     makeProfile('idcommitment', ProfileMessageSubType.Custom, 'id_commitment'),
     mockUserProof()
   );
   await db.insertMessage(
-    makeProfile('ecdh1', ProfileMessageSubType.Custom, 'ecdh_pubkey'),
+    makeProfile('0x00', ProfileMessageSubType.Custom, 'ecdh_pubkey', 'userA'),
     mockUserProof()
   );
   await db.insertMessage(
-    makeProfile('ecdh2', ProfileMessageSubType.Custom, 'ecdh_pubkey'),
+    makeProfile('0x01', ProfileMessageSubType.Custom, 'ecdh_pubkey', 'userA'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeProfile('0x03', ProfileMessageSubType.Custom, 'ecdh_pubkey', 'userC'),
+    mockUserProof()
+  );
+
+  // Initialize DB with Chat messages
+  await db.insertMessage(
+    makeChat('hi 0x02 from 0x01!', ChatMessageSubType.Direct, '0x01', '0x02', undefined, 'userA'),
+    mockUserProof()
+  );
+
+  await db.insertMessage(
+    makeChat('hi 0x03 from 0x01!', ChatMessageSubType.Direct, '0x01', '0x03', undefined, 'userA'),
+    mockUserProof()
+  );
+
+  await db.insertMessage(
+    makeChat('hi 0x02 from 0x01a!', ChatMessageSubType.Direct, '0x01a', '0x02', undefined, 'userA'),
+    mockUserProof()
+  );
+
+  await db.insertMessage(
+    makeChat('hi 0x01 from 0x02!', ChatMessageSubType.Direct, '0x02', '0x01', undefined, 'userB'),
+    mockUserProof()
+  );
+
+  await db.insertMessage(
+    makeChat('hi 0x03 from 0x02!', ChatMessageSubType.Direct, '0x02', '0x03', undefined, 'userB'),
     mockUserProof()
   );
 
@@ -315,6 +348,7 @@ tape('LevelDB Adapter', async t => {
   t.test('insert profile', async test => {
     const userMetaA = await ldb.getUserMeta('userA');
 
+    test.equal(await ldb.getUserByECDH('0x01'), 'userA', 'it should index user by ECDH');
     test.deepEqual(
       userMetaA,
       {
@@ -322,10 +356,10 @@ tape('LevelDB Adapter', async t => {
         blockers: 1,
         blocking: 0,
         coverImage: 'cover.image',
-        ecdh: 'ecdh2',
+        ecdh: '0x01',
         followers: 5,
         following: 1,
-        group: '2333a7c0c39c851a5d2072bc876b79299760c9b7d9e30c6a54df91b0d7345485',
+        group: groupMsg.hash(),
         idCommitment: 'idcommitment',
         nickname: 'developer2',
         posts: 1,
@@ -335,6 +369,170 @@ tape('LevelDB Adapter', async t => {
       },
       'it should insert correct userMeta'
     );
+    test.end();
+  });
+
+  t.test('insert chat', async test => {
+    test.deepEqual(
+      await ldb.getChatECDHByUser('userA'),
+      ['0x01', '0x01a'],
+      'userA should have 2 ecdh'
+    );
+    test.deepEqual(await ldb.getChatECDHByUser('userB'), ['0x02'], 'userB should have 1 ecdh');
+    test.deepEqual(await ldb.getChatECDHByUser('userC'), ['0x03'], 'userC should have 1 ecdh');
+
+    test.deepEqual(
+      await ldb.getChatByECDH('0x01'),
+      [
+        {
+          chatId: '7748fb43860ff96468d67c38e2aeeea57fb6524f6a08fd7dce060f451ded74fb',
+          receiverECDH: '0x03',
+          senderECDH: '0x01',
+          senderSeed: 'sender_seed',
+          type: 'DIRECT',
+        },
+        {
+          chatId: 'f601b31d49b3a7a6ca76a26896912e737532c3cfce522e10919742363cc52ccf',
+          receiverECDH: '0x02',
+          senderECDH: '0x01',
+          senderSeed: 'sender_seed',
+          type: 'DIRECT',
+        },
+      ],
+      'it should return 2 chats for 0x01'
+    );
+    test.deepEqual(
+      await ldb.getChatByECDH('0x01a'),
+      [
+        {
+          chatId: '9dc674422a4bc3e9e6661d3b1fa6804031318c3f1ae7d907dd04ce9d77d79876',
+          receiverECDH: '0x02',
+          senderECDH: '0x01a',
+          senderSeed: 'sender_seed',
+          type: 'DIRECT',
+        },
+      ],
+      'it should return 1 chat for 0x01s'
+    );
+    test.deepEqual(
+      await ldb.getChatByECDH('0x02'),
+      [
+        {
+          chatId: '9dc674422a4bc3e9e6661d3b1fa6804031318c3f1ae7d907dd04ce9d77d79876',
+          receiverECDH: '0x02',
+          senderECDH: '0x01a',
+          senderSeed: 'sender_seed',
+          type: 'DIRECT',
+        },
+        {
+          chatId: 'e5adc7a51ab9a89717889d2268c60d9088c98ff7d966765edcd90a442c6ca035',
+          receiverECDH: '0x03',
+          senderECDH: '0x02',
+          senderSeed: 'sender_seed',
+          type: 'DIRECT',
+        },
+        {
+          chatId: 'f601b31d49b3a7a6ca76a26896912e737532c3cfce522e10919742363cc52ccf',
+          receiverECDH: '0x02',
+          senderECDH: '0x01',
+          senderSeed: 'sender_seed',
+          type: 'DIRECT',
+        },
+      ],
+      'it should return 3 chats for 0x02'
+    );
+    test.deepEqual(
+      await ldb.getChatByECDH('0x03'),
+      [
+        {
+          chatId: '7748fb43860ff96468d67c38e2aeeea57fb6524f6a08fd7dce060f451ded74fb',
+          receiverECDH: '0x03',
+          senderECDH: '0x01',
+          senderSeed: 'sender_seed',
+          type: 'DIRECT',
+        },
+        {
+          chatId: 'e5adc7a51ab9a89717889d2268c60d9088c98ff7d966765edcd90a442c6ca035',
+          receiverECDH: '0x03',
+          senderECDH: '0x02',
+          senderSeed: 'sender_seed',
+          type: 'DIRECT',
+        },
+      ],
+      'it should return 2 chats for 0x03'
+    );
+
+    const msgs0x020x01 = await ldb.getChatMessages(
+      'f601b31d49b3a7a6ca76a26896912e737532c3cfce522e10919742363cc52ccf'
+    );
+    test.equal(
+      msgs0x020x01[0].payload.encryptedContent,
+      'hi 0x01 from 0x02!',
+      'it should return correct first message'
+    );
+    test.equal(
+      msgs0x020x01[1].payload.encryptedContent,
+      'hi 0x02 from 0x01!',
+      'it should return correct second message'
+    );
+
+    test.assert(
+      await ldb.getChatMeta(
+        '0x02',
+        'f601b31d49b3a7a6ca76a26896912e737532c3cfce522e10919742363cc52ccf'
+      )
+    );
+    test.deepEqual(
+      await ldb.getChatMeta(
+        '0x02',
+        'f601b31d49b3a7a6ca76a26896912e737532c3cfce522e10919742363cc52ccf'
+      ),
+      await ldb.getChatMeta(
+        '0x01',
+        'f601b31d49b3a7a6ca76a26896912e737532c3cfce522e10919742363cc52ccf'
+      ),
+      'it should return correct chat meta for f601b3'
+    );
+
+    test.equal(
+      (
+        await ldb.getChatMessages(
+          'e5adc7a51ab9a89717889d2268c60d9088c98ff7d966765edcd90a442c6ca035'
+        )
+      ).length,
+      1,
+      'e5adc7 should have 1 messages'
+    );
+    test.equal(
+      (
+        await ldb.getChatMessages(
+          'e5adc7a51ab9a89717889d2268c60d9088c98ff7d966765edcd90a442c6ca035'
+        )
+      )[0].payload.encryptedContent,
+      'hi 0x03 from 0x02!',
+      'e5adc7 should read correct content'
+    );
+
+    test.equal(
+      (
+        await ldb.getChatMessages(
+          '9dc674422a4bc3e9e6661d3b1fa6804031318c3f1ae7d907dd04ce9d77d79876'
+        )
+      ).length,
+      1,
+      '9dc674 should have 1 messages'
+    );
+    test.equal(
+      (
+        await ldb.getChatMessages(
+          '9dc674422a4bc3e9e6661d3b1fa6804031318c3f1ae7d907dd04ce9d77d79876'
+        )
+      )[0].payload.encryptedContent,
+      'hi 0x02 from 0x01a!',
+      '9dc674 should read correct content'
+    );
+
+
     test.end();
   });
 
@@ -423,6 +621,27 @@ function makeProfile(
     payload: {
       key,
       value,
+    },
+  });
+}
+
+function makeChat(
+  encryptedContent: string,
+  subtype = ChatMessageSubType.Direct,
+  senderECDH = 'sender_ecdh_a',
+  receiverECDH = 'receiver_ecdh_a',
+  senderSeed = 'sender_seed',
+  creator = 'userA'
+): Chat {
+  return new Chat({
+    type: MessageType.Chat,
+    subtype: subtype,
+    creator,
+    payload: {
+      encryptedContent,
+      senderECDH,
+      receiverECDH,
+      senderSeed,
     },
   });
 }

@@ -81,4 +81,6 @@ export interface GenericDBAdapterInterface {
   incrementBlockerCount(conn: Connection): Promise<void>;
   updateProfile(profile: Profile, key: UserMetaKey): Promise<void>;
   updateUserECDH(profile: Profile): Promise<void>;
+  addChatMessage(chat: Chat): Promise<void>;
+  addDirectChatMeta(chat: Chat): Promise<void>;
 }

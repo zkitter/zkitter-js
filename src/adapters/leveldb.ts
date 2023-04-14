@@ -803,6 +803,59 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     return chat;
   }
 
+  async addChatMessage(chat: Chat): Promise<void> {
+    const { receiverECDH, senderECDH, senderSeed} = chat.payload;
+
+    const chatId = await deriveChatId(receiverECDH, senderECDH);
+
+    if (chat.creator) {
+      await this.savedChatECDHDB(chat.creator).put(senderECDH, senderECDH);
+    }
+
+    const receiver = await this.getUserByECDH(receiverECDH);
+
+    if (receiver) {
+      await this.savedChatECDHDB(receiver).put(receiverECDH, receiverECDH);
+    }
+
+    await this.chatDB(chatId).put(charwise.encode(chat.createdAt.getTime()), chat.hash());
+  }
+
+  async addDirectChatMeta(chat: Chat): Promise<void> {
+    const { receiverECDH, senderECDH, senderSeed} = chat.payload;
+
+    const chatId = await deriveChatId(receiverECDH, senderECDH);
+    const senderMeta = await this.chatMetaDB(chat.payload.senderECDH)
+      .get(chatId)
+      .catch(() => null);
+
+    const receiverMeta = await this.chatMetaDB(chat.payload.receiverECDH)
+      .get(chatId)
+      .catch(() => null);
+
+    if (chat.subtype === 'DIRECT') {
+      if (!senderMeta) {
+        await this.chatMetaDB(senderECDH).put(chatId, {
+          chatId,
+          receiverECDH,
+          senderECDH,
+          senderSeed,
+          type: chat.subtype,
+        });
+      }
+
+      if (!receiverMeta) {
+        await this.chatMetaDB(receiverECDH).put(chatId, {
+          chatId,
+          receiverECDH,
+          senderECDH,
+          senderSeed,
+          type: chat.subtype,
+        });
+      }
+    }
+  }
+
   async addMessage(msg: AnyMessage): Promise<void> {
     const json = msg.toJSON();
     return this.messageDB().put(json.hash, json);

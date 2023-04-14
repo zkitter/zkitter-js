@@ -2,7 +2,7 @@ import {GenericService} from "../utils/svc";
 import {ConstructorOptions} from "eventemitter2";
 import {GenericDBAdapterInterface} from "../adapters/db";
 import {
-  AnyMessage, Connection, ConnectionMessageSubType,
+  AnyMessage, Chat, ChatMessageSubType, Connection, ConnectionMessageSubType,
   MessageType,
   Moderation,
   ModerationMessageSubType,
@@ -40,6 +40,8 @@ export class DBService extends GenericService {
         return this.insertConnection(msg as Connection, proof);
       case MessageType.Profile:
         return this.insertProfile(msg as Profile, proof);
+      case MessageType.Chat:
+        return this.insertChat(msg as Chat, proof);
       default:
         return;
     }
@@ -139,6 +141,15 @@ export class DBService extends GenericService {
           await this.db.updateProfile(profile,'ecdh');
           await this.db.updateUserECDH(profile);
         }
+        break;
+    }
+  }
+
+  async insertChat(chat: Chat, proof: Proof): Promise<void> {
+    switch (chat.subtype) {
+      case ChatMessageSubType.Direct:
+        await this.db.addChatMessage(chat);
+        await this.db.addDirectChatMeta(chat);
         break;
     }
   }

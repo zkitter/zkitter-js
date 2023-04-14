@@ -747,6 +747,7 @@ export type ChatMessageOption = {
 } & MessageOption;
 
 export class Chat extends Message {
+  type: MessageType.Chat;
   subtype: ChatMessageSubType;
 
   payload: ChatMessagePayload;
