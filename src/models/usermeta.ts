@@ -3,6 +3,7 @@ export type UserMetaKey =
   | 'coverImage'
   | 'profileImage'
   | 'website'
+  | 'group'
   | 'twitterVerification'
   | 'bio'
   | 'ecdh'
@@ -14,7 +15,7 @@ export type UserMeta = {
   profileImage: string;
   website: string;
   twitterVerification: string;
-  group: boolean;
+  group: string;
   bio: string;
   ecdh: string;
   idCommitment: string;
@@ -33,7 +34,7 @@ export const EmptyUserMeta = (): UserMeta => ({
   ecdh: '',
   followers: 0,
   following: 0,
-  group: false,
+  group: '',
   idCommitment: '',
   nickname: '',
   posts: 0,

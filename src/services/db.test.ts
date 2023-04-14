@@ -1,8 +1,8 @@
 import tape from 'tape';
 import * as path from 'path';
 import * as fs from 'fs';
-import {LevelDBAdapter} from '../adapters/leveldb';
-import {DBService} from './db';
+import { LevelDBAdapter } from '../adapters/leveldb';
+import { DBService } from './db';
 import {
   Connection,
   ConnectionMessageSubType,
@@ -10,9 +10,11 @@ import {
   Moderation,
   ModerationMessageSubType,
   Post,
-  PostMessageSubType
+  PostMessageSubType,
+  Profile,
+  ProfileMessageSubType,
 } from '../utils/message';
-import {ProofType, RLNProof, SignatureProof} from '../models/proof';
+import { ProofType, RLNProof, SignatureProof } from '../models/proof';
 
 tape('LevelDB Adapter', async t => {
   const cwd = process.cwd();
@@ -36,31 +38,134 @@ tape('LevelDB Adapter', async t => {
   await db.insertMessage(makeRepost(messageIdB, 'userB'), mockUserProof());
 
   // Initialize DB with moderations
-  await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.Global, 'userB'), mockUserProof());
-  await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.ThreadFollow, 'userA'), mockUserProof());
-  await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.ThreadMention, 'userA'), mockUserProof());
-  await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.ThreadBlock, 'userB'), mockUserProof());
-  await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.Like, 'userA'), mockUserProof());
-  await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.Like, 'userB'), mockUserProof());
-  await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.Like, 'userB'), mockUserProof());
-  await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.Like, 'userB'), mockUserProof());
-  await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.Like, 'userC'), mockUserProof());
-  await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.Like, 'userD'), mockUserProof());
-  await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.Block, 'userD'), mockUserProof());
-  await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.Block, 'userD'), mockUserProof());
+  await db.insertMessage(
+    makeModeration(messageIdA, ModerationMessageSubType.Global, 'userB'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeModeration(messageIdA, ModerationMessageSubType.ThreadFollow, 'userA'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeModeration(messageIdA, ModerationMessageSubType.ThreadMention, 'userA'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeModeration(messageIdA, ModerationMessageSubType.ThreadBlock, 'userB'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeModeration(messageIdA, ModerationMessageSubType.Like, 'userA'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeModeration(messageIdA, ModerationMessageSubType.Like, 'userB'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeModeration(messageIdA, ModerationMessageSubType.Like, 'userB'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeModeration(messageIdA, ModerationMessageSubType.Like, 'userB'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeModeration(messageIdA, ModerationMessageSubType.Like, 'userC'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeModeration(messageIdA, ModerationMessageSubType.Like, 'userD'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeModeration(messageIdA, ModerationMessageSubType.Block, 'userD'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeModeration(messageIdA, ModerationMessageSubType.Block, 'userD'),
+    mockUserProof()
+  );
 
   // Initialize DB with connections
-  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userA'), mockUserProof());
-  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userA'), mockUserProof());
-  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userB'), mockUserProof());
-  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userC'), mockUserProof());
-  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userD'), mockUserProof());
-  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userD'), mockUserProof());
-  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Follow, 'userE'), mockUserProof());
-  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Block, 'userE'), mockUserProof());
-  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.Block, 'userE'), mockUserProof());
-  await db.insertMessage(makeConnection('userA', ConnectionMessageSubType.MemberInvite, 'userE'), mockUserProof());
-  await db.insertMessage(makeConnection('userE', ConnectionMessageSubType.MemberAccept, 'userA'), mockUserProof());
+  await db.insertMessage(
+    makeConnection('userA', ConnectionMessageSubType.Follow, 'userA'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeConnection('userA', ConnectionMessageSubType.Follow, 'userA'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeConnection('userA', ConnectionMessageSubType.Follow, 'userB'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeConnection('userA', ConnectionMessageSubType.Follow, 'userC'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeConnection('userA', ConnectionMessageSubType.Follow, 'userD'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeConnection('userA', ConnectionMessageSubType.Follow, 'userD'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeConnection('userA', ConnectionMessageSubType.Follow, 'userE'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeConnection('userA', ConnectionMessageSubType.Block, 'userE'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeConnection('userA', ConnectionMessageSubType.Block, 'userE'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeConnection('userA', ConnectionMessageSubType.MemberInvite, 'userE'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeConnection('userE', ConnectionMessageSubType.MemberAccept, 'userA'),
+    mockUserProof()
+  );
+
+  // Initialize DB with profile messages
+  await db.insertMessage(makeProfile('developer', ProfileMessageSubType.Name), mockUserProof());
+  await db.insertMessage(makeProfile('developer2', ProfileMessageSubType.Name), mockUserProof());
+  await db.insertMessage(makeProfile('bio', ProfileMessageSubType.Bio), mockUserProof());
+  await db.insertMessage(
+    makeProfile('profile.image', ProfileMessageSubType.ProfileImage),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeProfile('cover.image', ProfileMessageSubType.CoverImage),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeProfile('tv', ProfileMessageSubType.TwitterVerification),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeProfile('website.url', ProfileMessageSubType.Website),
+    mockUserProof()
+  );
+  await db.insertMessage(makeProfile('', ProfileMessageSubType.Group), mockUserProof());
+  await db.insertMessage(
+    makeProfile('idcommitment', ProfileMessageSubType.Custom, 'id_commitment'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeProfile('ecdh1', ProfileMessageSubType.Custom, 'ecdh_pubkey'),
+    mockUserProof()
+  );
+  await db.insertMessage(
+    makeProfile('ecdh2', ProfileMessageSubType.Custom, 'ecdh_pubkey'),
+    mockUserProof()
+  );
 
   t.test('messages and proof', async test => {
     const msgA = await ldb.getMessage(hashA);
@@ -69,7 +174,7 @@ tape('LevelDB Adapter', async t => {
     test.deepEqual(msgA?.toJSON(), opA.toJSON(), 'it should update message');
     test.deepEqual(proofA, mockUserProof('a'), 'it should update proof');
     test.end();
-  })
+  });
 
   t.test('insert posts', async postTest => {
     postTest.test('postlists', async test => {
@@ -135,15 +240,21 @@ tape('LevelDB Adapter', async t => {
     modTest.equal(postMetaA.block, 1, 'only 1 block per thread per creator');
     modTest.equal(postMetaA.like, 4, 'only 1 like per thread per creator');
     modTest.equal(postMetaA.global, false, 'only creator can update global visibility');
-    modTest.equal(postMetaA.moderation, 'THREAD_ONLY_MENTION', 'only creator can update moderation');
+    modTest.equal(
+      postMetaA.moderation,
+      'THREAD_ONLY_MENTION',
+      'only creator can update moderation'
+    );
 
-    await db.insertMessage(makeModeration(messageIdA, ModerationMessageSubType.Global, 'userA'), mockUserProof());
+    await db.insertMessage(
+      makeModeration(messageIdA, ModerationMessageSubType.Global, 'userA'),
+      mockUserProof()
+    );
     const adjMetaA = await ldb.getPostMeta(hashA);
     modTest.equal(adjMetaA.global, true, 'only creator can update global visibility');
 
     const amods = await ldb.getModerations(hashA);
     const bmods = await ldb.getModerations(hashB);
-
 
     modTest.equal(amods.length, 10, 'it should have 10 moderations on thread A');
     modTest.equal(bmods.length, 0, 'it should have 0 moderations on thread A');
@@ -192,8 +303,38 @@ tape('LevelDB Adapter', async t => {
 
     test.equal(econns.length, 1, 'userE should have 1 incoming connections');
     test.equal(econns[0].subtype, 'MEMBER_ACCEPT', 'userE should have an incoming MEMBER_ACCEPT');
-    test.equal(econns[0].creator, 'userA', 'userE should have an incoming MEMBER_ACCEPT from userA');
+    test.equal(
+      econns[0].creator,
+      'userA',
+      'userE should have an incoming MEMBER_ACCEPT from userA'
+    );
 
+    test.end();
+  });
+
+  t.test('insert profile', async test => {
+    const userMetaA = await ldb.getUserMeta('userA');
+
+    test.deepEqual(
+      userMetaA,
+      {
+        bio: 'bio',
+        blockers: 1,
+        blocking: 0,
+        coverImage: 'cover.image',
+        ecdh: 'ecdh2',
+        followers: 5,
+        following: 1,
+        group: '2333a7c0c39c851a5d2072bc876b79299760c9b7d9e30c6a54df91b0d7345485',
+        idCommitment: 'idcommitment',
+        nickname: 'developer2',
+        posts: 1,
+        profileImage: 'profile.image',
+        twitterVerification: 'tv',
+        website: 'website.url',
+      },
+      'it should insert correct userMeta'
+    );
     test.end();
   });
 
@@ -239,7 +380,11 @@ function makeRepost(reference: string, creator = 'userA'): Post {
   });
 }
 
-function makeModeration(reference: string, subtype = ModerationMessageSubType.Default, creator = 'userA'): Moderation {
+function makeModeration(
+  reference: string,
+  subtype = ModerationMessageSubType.Default,
+  creator = 'userA'
+): Moderation {
   return new Moderation({
     type: MessageType.Moderation,
     subtype: subtype,
@@ -250,13 +395,34 @@ function makeModeration(reference: string, subtype = ModerationMessageSubType.De
   });
 }
 
-function makeConnection(name: string, subtype = ConnectionMessageSubType.Default, creator = 'userA'): Connection {
+function makeConnection(
+  name: string,
+  subtype = ConnectionMessageSubType.Default,
+  creator = 'userA'
+): Connection {
   return new Connection({
     type: MessageType.Connection,
     subtype: subtype,
     creator,
     payload: {
       name,
+    },
+  });
+}
+
+function makeProfile(
+  value: string,
+  subtype = ProfileMessageSubType.Default,
+  key?: string,
+  creator = 'userA'
+): Profile {
+  return new Profile({
+    type: MessageType.Profile,
+    subtype: subtype,
+    creator,
+    payload: {
+      key,
+      value,
     },
   });
 }

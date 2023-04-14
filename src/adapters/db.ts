@@ -3,7 +3,7 @@ import { GroupMember } from '../models/group';
 import { PostMeta } from '../models/postmeta';
 import { Proof } from '../models/proof';
 import { User } from '../models/user';
-import { UserMeta } from '../models/usermeta';
+import {UserMeta, UserMetaKey} from '../models/usermeta';
 import { Filter } from '../utils/filters';
 import { AnyMessage, Chat, Connection, Message, Moderation, Post, Profile } from '../utils/message';
 
@@ -79,4 +79,6 @@ export interface GenericDBAdapterInterface {
   addToConnections(conn: Connection): Promise<void>;
   incrementFollowerCount(conn: Connection): Promise<void>;
   incrementBlockerCount(conn: Connection): Promise<void>;
+  updateProfile(profile: Profile, key: UserMetaKey): Promise<void>;
+  updateUserECDH(profile: Profile): Promise<void>;
 }

@@ -7,7 +7,7 @@ import {
   Moderation,
   ModerationMessageSubType,
   Post,
-  PostMessageSubType
+  PostMessageSubType, Profile, ProfileMessageSubType
 } from "../utils/message";
 import {Proof} from "../models/proof";
 
@@ -38,6 +38,8 @@ export class DBService extends GenericService {
         return this.insertModeration(msg as Moderation, proof);
       case MessageType.Connection:
         return this.insertConnection(msg as Connection, proof);
+      case MessageType.Profile:
+        return this.insertProfile(msg as Profile, proof);
       default:
         return;
     }
@@ -105,5 +107,39 @@ export class DBService extends GenericService {
     }
 
     await this.db.addToConnections(conn);
+  }
+
+  async insertProfile(profile: Profile, proof: Proof): Promise<void> {
+    switch (profile.subtype) {
+      case ProfileMessageSubType.Bio:
+        await this.db.updateProfile(profile,'bio');
+        break;
+      case ProfileMessageSubType.CoverImage:
+        await this.db.updateProfile(profile,'coverImage');
+        break;
+      case ProfileMessageSubType.ProfileImage:
+        await this.db.updateProfile(profile,'profileImage');
+        break;
+      case ProfileMessageSubType.Group:
+        await this.db.updateProfile(profile,'group');
+        break;
+      case ProfileMessageSubType.Name:
+        await this.db.updateProfile(profile,'nickname');
+        break;
+      case ProfileMessageSubType.TwitterVerification:
+        await this.db.updateProfile(profile,'twitterVerification');
+        break;
+      case ProfileMessageSubType.Website:
+        await this.db.updateProfile(profile,'website');
+        break;
+      case ProfileMessageSubType.Custom:
+        if (profile.payload.key === 'id_commitment') {
+          await this.db.updateProfile(profile,'idCommitment');
+        } else if (profile.payload.key === 'ecdh_pubkey') {
+          await this.db.updateProfile(profile,'ecdh');
+          await this.db.updateUserECDH(profile);
+        }
+        break;
+    }
   }
 }

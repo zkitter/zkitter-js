@@ -480,7 +480,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
         await checkAndReplace('profileImage');
         break;
       case ProfileMessageSubType.Group:
-        creatorMeta.group = true;
+        await checkAndReplace('group');
         break;
       case ProfileMessageSubType.Name:
         await checkAndReplace('nickname');
@@ -519,6 +519,35 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     await this.db.batch(operations);
 
     return profile;
+  }
+
+  async updateProfile(profile: Profile, key: UserMetaKey): Promise<void> {
+    if (!profile.creator) throw new Error('profile does not have a creator');
+
+    const creatorMeta = await this.userMetaDB.get(profile.creator).catch(() => EmptyUserMeta());
+    const hash = creatorMeta[key];
+    const msg = await this.messageDB<ProfileJSON>()
+      .get(hash)
+      .catch(() => null);
+
+    if (!msg || msg.createdAt < profile.createdAt.getTime()) {
+      creatorMeta[key] = profile.hash();
+    }
+
+    return this.userMetaDB.put(profile.creator, creatorMeta);
+  }
+
+  async updateUserECDH(profile: Profile): Promise<void> {
+    if (!profile.creator) throw new Error('profile does not have a creator');
+    const creatorMeta = await this.getUserMeta(profile.creator);
+    const hash = creatorMeta.ecdh;
+    const msg = await this.messageDB<ProfileJSON>()
+      .get(hash)
+      .catch(() => null);
+
+    if (!msg || msg.createdAt < profile.createdAt.getTime()) {
+      return this.userECDHDB.put(profile.payload.value, profile.creator);
+    }
   }
 
   async insertConnection(conn: Connection, proof: Proof): Promise<Connection | null> {
