@@ -55,6 +55,10 @@ export class UserService extends GenericService {
     this.db = props.db;
   }
 
+  async start() {
+    await this.watchArbitrum();
+  }
+
   async status(): Promise<{
     totalUsers: number;
     lastBlockScanned: number;
@@ -72,6 +76,7 @@ export class UserService extends GenericService {
 
   async subscribeRegistrar(startingBlock?: number): Promise<void> {
     const lastBlock = startingBlock || (await this.db.getLastArbitrumBlockScanned());
+    const block = await this.getBlock('latest');
 
     return new Promise((resolve, reject) => {
       let timeout: any;
@@ -87,6 +92,9 @@ export class UserService extends GenericService {
             }
             await this.updateUser(event);
             await this.db.updateLastArbitrumBlockScanned(event.blockNumber + 1);
+            this.emit(UserServiceEvents.ArbitrumSynced, {
+              toBlock: event.blockNumber,
+            });
             timeout = setTimeout(resolve, 5000);
           })
         )
@@ -99,6 +107,10 @@ export class UserService extends GenericService {
         .on('error', (err: any) => {
           throw new Error(err);
         });
+    }).then(async () => {
+      this.emit(UserServiceEvents.ArbitrumSynced, {
+        toBlock: block.number,
+      });
     });
   }
 

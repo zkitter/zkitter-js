@@ -9,6 +9,7 @@ import { AnyMessage, Chat, Connection, Message, Moderation, Post, Profile } from
 
 export interface GenericDBAdapterInterface {
   getUserCount: () => Promise<number>;
+  getMessageCount: () => Promise<number>;
   getLastArbitrumBlockScanned: () => Promise<number>;
   updateLastArbitrumBlockScanned: (block: number) => Promise<number>;
   getHistoryDownloaded: (user?: string, group?: boolean) => Promise<boolean>;
