@@ -3,15 +3,18 @@ export type { GenericDBAdapterInterface } from './adapters/db';
 export type { GenericGroupAdapter } from './adapters/group';
 
 export { LevelDBAdapter } from './adapters/leveldb';
+
 export type { GroupID, GroupMember } from './models/group';
-export type { PostMeta } from './models/postmeta';
-export { EmptyPostMeta } from './models/postmeta';
+
+export { EmptyPostMeta, type PostMeta } from './models/postmeta';
 
 export type { Proof, ProofType, RLNProof, SignatureProof } from './models/proof';
 
 export type { User } from './models/user';
 
-export { EmptyUserMeta, type UserMeta } from './models/usermeta';
+export { EmptyUserMeta, type UserMeta, type UserMetaKey } from './models/usermeta';
+
+export type { ChatMeta, DirectMessageChatMeta } from './models/chats';
 
 export { Zkitter } from './services';
 
@@ -29,9 +32,12 @@ export {
 
 export * as Utils from './utils/encoding';
 
+export { hexify, toBigInt } from './utils/encoding';
+
 export type { ZkitterEvents } from './utils/events';
 
 export { Filter, type FilterOptions } from './utils/filters';
+
 export {
   generateECDHKeyPairFromHex,
   generateECDHKeyPairFromZKIdentity,
@@ -42,7 +48,9 @@ export {
   generateZkIdentityFromHex,
   generateZKIdentityWithP256,
 } from './utils/identity';
-export { Chat, Connection, Message, Moderation, Post, Profile, Revert } from './utils/message';
+
+export { Chat, Connection, Message, Moderation, Post, Profile, Revert, type AnyMessage, type AnyJSON } from './utils/message';
+
 export {
   type ChatJSON,
   type ChatMessageOption,
@@ -62,4 +70,5 @@ export {
   type ProfileMessageOption,
   ProfileMessageSubType,
 } from './utils/message';
-export { createRLNProof } from './utils/zk';
+
+export { createRLNProof, verifyRLNProof } from './utils/zk';

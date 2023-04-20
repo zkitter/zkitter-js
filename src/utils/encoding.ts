@@ -36,19 +36,38 @@ export const hexToArrayBuf = (hex: string): ArrayBuffer => {
   return hexToUintArray(hex).buffer;
 };
 
-export const toBigInt = (value: string | number): bigint => {
+export const toBigInt = (value: string | number | bigint): bigint => {
+  if (typeof value === 'bigint') return value;
+
   if (typeof value === 'number') {
     return BigInt(value);
   }
 
-  if (/[a-z]/gi.test(value)) {
-    if (value.slice(0, 2) === '0x') return BigInt(value);
-    return BigInt('0x' + value);
-  }
-
-  return BigInt(value);
+  return BigInt(hexify(value));
 };
 
-export const hexify = (value: string | number): string => {
-  return '0x' + toBigInt(value).toString(16);
+export const hexify = (data: string | bigint | number, targetLength?: number): string => {
+  let hash = '';
+
+  if (typeof data === 'bigint') {
+    hash = data.toString(16);
+  }
+
+  if (typeof data === 'number') {
+    hash = data.toString(16);
+  }
+
+  if (typeof data === 'string') {
+    if (data.slice(0, 2) === '0x') {
+      hash = data.slice(2);
+    } else if (/^\d+$/.test(data)) {
+      hash = BigInt(data).toString(16);
+    } else if (/^[0-9a-fA-F]+$/.test(data)) {
+      hash = data;
+    }
+  }
+
+  if (targetLength) hash = hash.padStart(targetLength, '0');
+
+  return '0x' + hash;
 };

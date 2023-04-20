@@ -26,9 +26,9 @@ export async function handleList(zkitter: Zkitter, user: boolean, group: boolean
       console.log(u.address);
     }
   } else if (group) {
-    const { groups } = zkitter.services.groups;
-    for (const g of Object.values(groups)) {
-      console.log(g.groupId);
-    }
+    // const { groups } = zkitter.services.groups;
+    // for (const g of Object.values(groups)) {
+    //   console.log(g.groupId);
+    // }
   }
 }
