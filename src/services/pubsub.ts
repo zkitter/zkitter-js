@@ -1,4 +1,4 @@
-import { Strategy, ZkIdentity } from '@zk-kit/identity';
+import { ZkIdentity } from '@zk-kit/identity';
 import { ConstructorOptions } from 'eventemitter2';
 import { createDecoder, createEncoder, waitForRemotePeer } from '@waku/core';
 import { createLightNode } from '@waku/create';
@@ -6,7 +6,7 @@ import { LightNode, Protocols } from '@waku/interfaces';
 import { GenericDBAdapterInterface } from '../adapters/db';
 import { Message } from '../models/message';
 import { Proof, ProofType } from '../models/proof';
-import { sha256, signWithP256, verifySignatureP256 } from '../utils/crypto';
+import { signWithP256, verifySignatureP256 } from '../utils/crypto';
 import { Filter } from '../utils/filters';
 import { generateECDHKeyPairFromZKIdentity } from '../utils/identity';
 import {
@@ -30,7 +30,6 @@ import {
 } from '../utils/pubsub';
 import { GenericService } from '../utils/svc';
 import { createRLNProof, verifyRLNProof } from '../utils/zk';
-import { DataService } from './db';
 import { GroupService } from './groups';
 import { UserService } from './users';
 
@@ -49,10 +48,6 @@ export class PubsubService extends GenericService {
     topicPrefix?: string
   ) {
     const waku = await createLightNode({ defaultBootstrap: true });
-    if (!lazy) {
-      await waku.start();
-      await waitForRemotePeer(waku, [Protocols.Store, Protocols.Filter, Protocols.LightPush]);
-    }
     return new PubsubService({ db, groups, topicPrefix, users, waku });
   }
 

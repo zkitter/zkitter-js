@@ -170,13 +170,13 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   groupMembersDB(groupId: string) {
-    return this.db.sublevel<string, GroupMember>(groupId + '/members', {
+    return this.udb.sublevel<string, GroupMember>(groupId + '/members', {
       valueEncoding: 'json',
     });
   }
 
   groupMemberlistDB(groupId: string) {
-    return this.db.sublevel<string, string>(groupId + '/memberlist', {
+    return this.udb.sublevel<string, string>(groupId + '/memberlist', {
       valueEncoding: 'json',
     });
   }
@@ -186,7 +186,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
   }
 
   groupRootsDB(rootHash: string) {
-    return this.db.sublevel<string, string>(rootHash + '/groupRoots', {
+    return this.udb.sublevel<string, string>(rootHash + '/groupRoots', {
       valueEncoding: 'json',
     });
   }
@@ -201,6 +201,11 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
 
   async getUserCount(): Promise<number> {
     const keys = await this.userDB.keys().all();
+    return keys.length;
+  }
+
+  async getMessageCount(): Promise<number> {
+    const keys = await this.messageDB().keys().all();
     return keys.length;
   }
 
@@ -413,7 +418,7 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
       return null;
     }
 
-    await this.db.batch([
+    await this.udb.batch([
       {
         key: member.idCommitment,
         sublevel: this.groupMembersDB(groupId),

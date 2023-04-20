@@ -48,7 +48,12 @@ export class Zkitter extends GenericService {
 
   historyAPI: string;
 
-  services: {
+  private _waitForStart: Promise<void>;
+
+  private resolveStartPromise: (value: PromiseLike<void> | void) => void;
+  private rejectStartPromise: (value: PromiseLike<void> | void) => void;
+
+  private services: {
     users: UserService;
     pubsub: PubsubService;
     groups: GroupService;
@@ -142,6 +147,11 @@ export class Zkitter extends GenericService {
       users: opts.users,
     };
 
+    this._waitForStart = new Promise((resolve, reject) => {
+      this.resolveStartPromise = resolve;
+      this.rejectStartPromise = reject;
+    });
+
     for (const service of Object.values(this.services)) {
       service.onAny((event, ...values) => {
         this.emit(event, ...values);
@@ -151,22 +161,45 @@ export class Zkitter extends GenericService {
 
   async status() {
     return {
+      arbitrum: {
+        lastBlock: await this.db.getLastArbitrumBlockScanned(),
+      },
       filter: this.filter.json,
-      users: await this.services.users.status(),
+      messages: {
+        total: await this.db.getMessageCount(),
+      },
+      users: {
+        count: await this.db.getUserCount(),
+      },
     };
   }
 
   /**
    * start zkitter node
-   * use zkitter.subscribe to subcribe to new messages
    */
   async start() {
-    await this.services.users.watchArbitrum();
-    await this.services.groups.watch();
-    if (!this.filter.isEmpty) {
-      await this.query();
-      await this.subscribe();
-    }
+    Promise.all([
+      this.services.pubsub.start(),
+      this.services.users.start(),
+      this.services.groups.start(),
+    ])
+      .then(() => {
+        this.resolveStartPromise();
+      })
+      .then(async () => {
+        if (!this.filter.isEmpty) {
+          await this.query();
+          await this.subscribe();
+        }
+      })
+      .catch(e => {
+        console.error(e);
+        this.rejectStartPromise();
+      });
+  }
+
+  async waitForStart(): Promise<void> {
+    return this._waitForStart;
   }
 
   async subscribe() {
@@ -206,6 +239,7 @@ export class Zkitter extends GenericService {
       }
     }
 
+    await this.waitForStart();
     return this.services.pubsub.query(this.filter, async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
@@ -347,6 +381,7 @@ export class Zkitter extends GenericService {
   }
 
   async queryThread(address: string) {
+    await this.waitForStart();
     return this.services.pubsub.queryThread(address, async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
@@ -356,6 +391,7 @@ export class Zkitter extends GenericService {
 
   async queryUser(address: string) {
     this.downloadHistoryFromAPI(address);
+    await this.waitForStart();
     return this.services.pubsub.queryUser(address, async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
@@ -365,6 +401,7 @@ export class Zkitter extends GenericService {
 
   async queryGroup(groupId: string) {
     this.downloadHistoryFromAPI(undefined, true);
+    await this.waitForStart();
     return this.services.pubsub.queryGroup(groupId, async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);
@@ -374,6 +411,7 @@ export class Zkitter extends GenericService {
 
   async queryAll() {
     this.downloadHistoryFromAPI();
+    await this.waitForStart();
     return this.services.pubsub.queryAll(async (msg, proof) => {
       if (msg) {
         await this.insert(msg, proof);

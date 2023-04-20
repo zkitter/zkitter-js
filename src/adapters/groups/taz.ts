@@ -20,7 +20,7 @@ export class TazGroup extends EventEmitter2 implements GenericGroupAdapter {
     this.db = opts.db;
   }
 
-  async sync() {
+  sync = async () => {
     const members = await this.members();
     const resp = await fetch(this.api + '?offset=' + members.length);
     const json = await resp.json();
@@ -41,7 +41,7 @@ export class TazGroup extends EventEmitter2 implements GenericGroupAdapter {
         }
       }
     }
-  }
+  };
 
   async tree(depth = 15): Promise<IncrementalMerkleTree> {
     const tree = generateMerkleTree(depth, BigInt(0), await this.members());

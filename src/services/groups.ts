@@ -27,6 +27,10 @@ export class GroupService extends GenericService {
     this.groups = {};
   }
 
+  async start() {
+    await this.watch();
+  }
+
   status() {
     return Object.values(this.groups);
   }
@@ -74,10 +78,12 @@ export class GroupService extends GenericService {
       }
     }
 
-    for (const group of Object.values(this.groups)) {
-      await group.sync();
-      this.emit(GroupEvents.GroupSynced, group.groupId);
-    }
+    await Promise.all(
+      Object.values(this.groups).map(async group => {
+        await group.sync();
+        this.emit(GroupEvents.GroupSynced, group.groupId);
+      })
+    );
   }
 
   watch = async (groupId?: string) => {
