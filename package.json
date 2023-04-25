@@ -1,6 +1,6 @@
 {
   "name": "zkitter-js",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Implementation of Zkitter using Waku and LevelDB",
   "main": "dist/index.js",
   "scripts": {

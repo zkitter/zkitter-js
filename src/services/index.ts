@@ -174,6 +174,10 @@ export class Zkitter extends GenericService {
     };
   }
 
+  async reset() {
+    return this.db.reset();
+  }
+
   /**
    * start zkitter node
    */
@@ -234,7 +238,7 @@ export class Zkitter extends GenericService {
         }
       }
 
-      if (group) {
+      if (group.length) {
         await this.downloadHistoryFromAPI(undefined, true).catch(() => null);
       }
     }

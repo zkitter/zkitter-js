@@ -91,4 +91,5 @@ export interface GenericDBAdapterInterface {
     time?: Date
   ): Promise<void>;
   getLastSync(id: string, type: 'address' | 'group' | 'ecdh' | 'thread'): Promise<number>;
+  reset(): Promise<void>;
 }

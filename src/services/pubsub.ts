@@ -429,7 +429,7 @@ export class PubsubService extends GenericService {
   }
 
   private async getLastSyncFromFilter(filter: Filter): Promise<number> {
-    let lastSync = 0;
+    let lastSync = -1;
 
     const json = filter.json;
 
@@ -440,7 +440,7 @@ export class PubsubService extends GenericService {
       for (const id of json[k]) {
         const last = await this.db.getLastSync(id, k);
 
-        if (!lastSync) {
+        if (lastSync < 0) {
           lastSync = last;
         } else if (last < lastSync) {
           lastSync = last;
@@ -448,6 +448,7 @@ export class PubsubService extends GenericService {
       }
     }
 
+    console.log(lastSync);
     return lastSync;
   }
 

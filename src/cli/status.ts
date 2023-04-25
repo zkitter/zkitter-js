@@ -19,8 +19,6 @@ export function status(program: Command) {
 
 export async function handleStatus(zkitter: Zkitter) {
   const status = await zkitter.status();
-  console.log(
-    `Scanned to block # ${status.arbitrum.lastBlock} on Arbitrum Mainnet`
-  );
+  console.log(`Scanned to block # ${status.arbitrum.lastBlock} on Arbitrum Mainnet`);
   console.log(`Found ${status.users.count} users from registrar`);
 }

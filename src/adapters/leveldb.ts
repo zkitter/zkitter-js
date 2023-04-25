@@ -199,6 +199,10 @@ export class LevelDBAdapter implements GenericDBAdapterInterface {
     );
   }
 
+  async reset() {
+    await Promise.all([ this.db.clear(), this.udb.clear() ]);
+  }
+
   async getUserCount(): Promise<number> {
     const keys = await this.userDB.keys().all();
     return keys.length;

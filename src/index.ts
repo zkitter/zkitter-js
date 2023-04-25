@@ -4,6 +4,8 @@ export type { GenericGroupAdapter } from './adapters/group';
 
 export { LevelDBAdapter } from './adapters/leveldb';
 
+export type { ChatMeta, DirectMessageChatMeta } from './models/chats';
+
 export type { GroupID, GroupMember } from './models/group';
 
 export { EmptyPostMeta, type PostMeta } from './models/postmeta';
@@ -13,8 +15,6 @@ export type { Proof, ProofType, RLNProof, SignatureProof } from './models/proof'
 export type { User } from './models/user';
 
 export { EmptyUserMeta, type UserMeta, type UserMetaKey } from './models/usermeta';
-
-export type { ChatMeta, DirectMessageChatMeta } from './models/chats';
 
 export { Zkitter } from './services';
 
@@ -49,7 +49,17 @@ export {
   generateZKIdentityWithP256,
 } from './utils/identity';
 
-export { Chat, Connection, Message, Moderation, Post, Profile, Revert, type AnyMessage, type AnyJSON } from './utils/message';
+export {
+  type AnyJSON,
+  type AnyMessage,
+  Chat,
+  Connection,
+  Message,
+  Moderation,
+  Post,
+  Profile,
+  Revert,
+} from './utils/message';
 
 export {
   type ChatJSON,
